@@ -6,7 +6,6 @@ class APLLexer(object):
     def __init__(self):
         self.lexer = lex.lex(module=self)
         self.lexer.linestart = 0
-        self.num_pointers = 0
 
     def __iter__(self):
         return iter(self.lexer)

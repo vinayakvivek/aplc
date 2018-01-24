@@ -16,3 +16,6 @@ if __name__ == "__main__":
 
     parser = APLParser()
     parser.parse(data)
+
+    print('num_pointers: ', parser.num_pointers)
+    print('num_static_vars: ', parser.num_static_vars)

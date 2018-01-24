@@ -8,6 +8,8 @@ class APLParser(object):
     def __init__(self):
         self.lexer = APLLexer()
         self.parser = yacc.yacc(module=self)
+        self.num_pointers = 0
+        self.num_static_vars = 0
 
     def p_code(self, p):
         'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
@@ -26,19 +28,22 @@ class APLParser(object):
         p[0] = p[1] + ' ' + p[2]
         print(list(p))
 
-    def p_list(self, p):
+    def p_list_id(self, p):
         '''list : ID COMMA list
-                | pointer COMMA list
-                | ID
+                | ID'''
+        p[0] = ' '.join(p[1:])
+        self.num_static_vars += 1
+
+    def p_list_pointer(self, p):
+        '''list : pointer COMMA list
                 | pointer'''
         p[0] = ' '.join(p[1:])
-        print(list(p))
+        self.num_pointers += 1
 
     def p_pointer(self, p):
         '''pointer : STAR pointer
                    | STAR ID'''
-        p[0] = ' '.join(p[1:])
-        print('pointer', list(p))
+        p[0] = ''.join(p[1:])
 
     def p_empty(self, p):
         'empty :'
