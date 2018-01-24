@@ -5,106 +5,122 @@ import ply.lex as lex
 import ply.yacc as yacc
 
 
-reserved = {
-    'int': 'INT',
-    'void': 'VOID',
-    'main': 'MAIN',
-}
+class APLLexer(object):
 
-tokens = [
-    'INTEGER', 'ID', 'STAR', 'SEMICOLON', 'COMMA',
-    'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
-] + list(reserved.values())
+    def __init__(self):
+        self.lexer = lex.lex(module=self)
+        self.lexer.linestart = 0
+        self.num_pointers = 0
 
-t_ignore = " \t\n"
+    def __iter__(self):
+        return iter(self.lexer)
 
-t_LPAREN = r'\('
-t_RPAREN = r'\)'
-t_LBRACKET = r'\{'
-t_RBRACKET = r'\}'
-t_STAR = r'\*'
-t_SEMICOLON = r'\;'
-t_COMMA = r'\,'
+    def token(self):
+        return self.lexer.token()
 
+    def input(self, data):
+        self.lexer.input(data)
 
-def t_ID(t):
-    r'[_a-zA-Z][_a-zA-Z0-9]*'
-    t.type = reserved.get(t.value, 'ID')    # Check for reserved words
-    return t
+    reserved = {
+        'int': 'INT',
+        'void': 'VOID',
+        'main': 'MAIN',
+    }
 
+    tokens = [
+        'INTEGER', 'ID', 'STAR', 'SEMICOLON', 'COMMA',
+        'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
+    ] + list(reserved.values())
 
-def t_NUMBER(t):
-    r'\d+'
-    try:
-        t.value = int(t.value)
-    except ValueError:
-        print("Integer value too large %d", t.value)
-        t.value = 0
-    return t
+    t_ignore = " \t\n"
 
+    t_LPAREN = r'\('
+    t_RPAREN = r'\)'
+    t_LBRACKET = r'\{'
+    t_RBRACKET = r'\}'
+    t_STAR = r'\*'
+    t_SEMICOLON = r'\;'
+    t_COMMA = r'\,'
 
-def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
-    t.lexer.skip(1)
+    def t_ID(self, t):
+        r'[_a-zA-Z][_a-zA-Z0-9]*'
+        t.type = APLLexer.reserved.get(t.value, 'ID')    # Check for reserved words
+        return t
 
+    def t_NUMBER(self, t):
+        r'\d+'
+        try:
+            t.value = int(t.value)
+        except ValueError:
+            print("Integer value too large %d", t.value)
+            t.value = 0
+        return t
 
-# end lex rules -------------------------------
+    def t_error(self, t):
+        print("Illegal character '%s'" % t.value[0])
+        t.lexer.skip(1)
 
-
-# start parsing rules -------------------------
-
-def p_code(p):
-    'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
-    print('body: %s' % (p[6]))
-
-
-def p_body(p):
-    '''body : statement SEMICOLON body
-            | empty'''
-    if len(p) > 2:
-        p[0] = p[1] + p[2] + p[3]
-    else:
-        p[0] = ''
-
-
-def p_statement(p):
-    '''statement : INT list'''
-    p[0] = p[1] + ' ' + p[2]
-    print(list(p))
+    def t_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
+        t.lexer.linestart = t.lexer.lexpos
 
 
-def p_list(p):
-    '''list : ID COMMA list
-            | pointer COMMA list
-            | ID
-            | pointer'''
-    p[0] = ' '.join(p[1:])
-    print(list(p))
+class APLParser(object):
+    tokens = APLLexer.tokens
 
+    def __init__(self):
+        self.lexer = APLLexer()
+        self.parser = yacc.yacc(module=self)
 
-def p_pointer(p):
-    '''pointer : STAR pointer
-               | STAR ID'''
-    p[0] = ' '.join(p[1:])
-    print('pointer', list(p))
+    def p_code(self, p):
+        'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
+        print('body: %s' % (p[6]))
 
+    def p_body(self, p):
+        '''body : statement SEMICOLON body
+                | empty'''
+        if len(p) > 2:
+            p[0] = p[1] + p[2] + p[3]
+        else:
+            p[0] = ''
 
-def p_empty(p):
-    'empty :'
-    pass
+    def p_statement(self, p):
+        '''statement : INT list'''
+        p[0] = p[1] + ' ' + p[2]
+        print(list(p))
 
+    def p_list(self, p):
+        '''list : ID COMMA list
+                | pointer COMMA list
+                | ID
+                | pointer'''
+        p[0] = ' '.join(p[1:])
+        print(list(p))
 
-def p_error(p):
-    if p:
-        print("syntax error at {0}".format(p.value))
-    else:
-        print("syntax error at EOF")
+    def p_pointer(self, p):
+        '''pointer : STAR pointer
+                   | STAR ID'''
+        p[0] = ' '.join(p[1:])
+        print('pointer', list(p))
 
+    def p_empty(self, p):
+        'empty :'
+        pass
 
-def process(data):
-    lex.lex()
-    yacc.yacc()
-    yacc.parse(data)
+    def p_error(self, p):
+        if p:
+            stack_state_str = " ".join([symbol.type for symbol
+                                        in self.parser.symstack[1:]])
+            raise Exception("Syntax error at '%s', type %s, on line %d\n"
+                            "Parser state: %s %s . %s" %
+                            (p.value, p.type, p.lineno,
+                             self.parser.state, stack_state_str, p))
+        else:
+            raise Exception("Syntax error at EOF")
+
+    def parse(self, text):
+        return self.parser.parse(text, self.lexer)
 
 
 if __name__ == "__main__":
@@ -117,4 +133,5 @@ if __name__ == "__main__":
     with open(sys.argv[1], 'r') as file:
         data = file.read()
 
-    process(data)
+    parser = APLParser()
+    parser.parse(data)
