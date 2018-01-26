@@ -1,5 +1,13 @@
 import ply.yacc as yacc
 from lexer import APLLexer
+import logging
+
+logging.basicConfig(
+    level=logging.ERROR,
+    format="[%(levelname)s]: %(message)s",
+    datefmt='%I:%M:%S'
+)
+log = logging.getLogger()
 
 
 class APLParser(object):
@@ -7,13 +15,14 @@ class APLParser(object):
 
     def __init__(self):
         self.lexer = APLLexer()
-        self.parser = yacc.yacc(module=self)
+        self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.num_pointers = 0
         self.num_static_vars = 0
+        self.num_assignments = 0
 
     def p_code(self, p):
         'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
-        print('body: %s' % (p[6]))
+        logging.debug('body: %s' % (p[6]))
 
     def p_body(self, p):
         '''body : statement SEMICOLON body
@@ -24,9 +33,28 @@ class APLParser(object):
             p[0] = ''
 
     def p_statement(self, p):
-        '''statement : INT list'''
-        p[0] = p[1] + ' ' + p[2]
-        print(list(p))
+        '''statement : INT list
+                     | assignment_list'''
+        p[0] = ' '.join(p[1:])
+        print('statement: ', list(p))
+
+    def p_assignment_list(self, p):
+        '''assignment_list : assignment COMMA assignment_list
+                           | assignment'''
+        p[0] = ' '.join(p[1:])
+        print('assignment_list: ', list(p))
+
+    def p_assignment(self, p):
+        '''assignment : ID EQUALS assignment
+                      | pointer EQUALS assignment
+                      | ID EQUALS ID
+                      | ID EQUALS AND ID
+                      | pointer EQUALS INTEGER
+                      | pointer EQUALS ID
+                      | pointer EQUALS pointer'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        self.num_assignments += 1
+        print('assignment: ', list(p))
 
     def p_list_id(self, p):
         '''list : ID COMMA list

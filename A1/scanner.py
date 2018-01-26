@@ -19,3 +19,4 @@ if __name__ == "__main__":
 
     print('num_pointers: ', parser.num_pointers)
     print('num_static_vars: ', parser.num_static_vars)
+    print('num_assignments: ', parser.num_assignments)

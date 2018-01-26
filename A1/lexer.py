@@ -23,8 +23,10 @@ class APLLexer(object):
     }
 
     tokens = [
-        'INTEGER', 'ID', 'STAR', 'SEMICOLON', 'COMMA',
+        'INTEGER', 'ID',
+        'STAR', 'SEMICOLON', 'COMMA', 'AND',
         'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
+        'EQUALS',
     ] + list(reserved.values())
 
     t_ignore = " \t\n"
@@ -36,6 +38,8 @@ class APLLexer(object):
     t_STAR = r'\*'
     t_SEMICOLON = r'\;'
     t_COMMA = r'\,'
+    t_EQUALS = r'\='
+    t_AND = r'\&'
 
     def t_ID(self, t):
         r'[_a-zA-Z][_a-zA-Z0-9]*'
@@ -43,7 +47,7 @@ class APLLexer(object):
         t.type = APLLexer.reserved.get(t.value, 'ID')
         return t
 
-    def t_NUMBER(self, t):
+    def t_INTEGER(self, t):
         r'\d+'
         try:
             t.value = int(t.value)
