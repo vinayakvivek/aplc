@@ -36,13 +36,13 @@ class APLParser(object):
         '''statement : INT list
                      | assignment_list'''
         p[0] = ' '.join(p[1:])
-        print('statement: ', list(p))
+        logging.debug('statement: ' + str(list(p)))
 
     def p_assignment_list(self, p):
         '''assignment_list : assignment COMMA assignment_list
                            | assignment'''
         p[0] = ' '.join(p[1:])
-        print('assignment_list: ', list(p))
+        logging.debug('assignment_list: ' + str(list(p)))
 
     def p_assignment(self, p):
         '''assignment : ID EQUALS assignment
@@ -54,7 +54,7 @@ class APLParser(object):
                       | pointer EQUALS pointer'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         self.num_assignments += 1
-        print('assignment: ', list(p))
+        logging.debug('assignment: ' + str(list(p)))
 
     def p_list_id(self, p):
         '''list : ID COMMA list
