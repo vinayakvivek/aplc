@@ -26,7 +26,7 @@ class APLLexer(object):
         'INTEGER', 'ID',
         'STAR', 'SEMICOLON', 'COMMA', 'AND',
         'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
-        'EQUALS',
+        'EQUALS', 'PLUS', 'MINUS', 'DIVIDE'
     ] + list(reserved.values())
 
     t_ignore = " \t\n"
@@ -38,8 +38,13 @@ class APLLexer(object):
     t_STAR = r'\*'
     t_SEMICOLON = r'\;'
     t_COMMA = r'\,'
-    t_EQUALS = r'\='
     t_AND = r'\&'
+
+    t_PLUS = r'\+'
+    t_MINUS = r'-'
+    # t_TIMES = r'\*'
+    t_DIVIDE = r'/'
+    t_EQUALS = r'\='
 
     def t_ID(self, t):
         r'[_a-zA-Z][_a-zA-Z0-9]*'

@@ -3,7 +3,7 @@ from lexer import APLLexer
 import logging
 
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format="[%(levelname)s]: %(message)s",
     datefmt='%I:%M:%S'
 )
@@ -12,6 +12,11 @@ log = logging.getLogger()
 
 class APLParser(object):
     tokens = APLLexer.tokens
+    precedence = (
+        ('left', 'PLUS', 'MINUS'),
+        ('left', 'STAR', 'DIVIDE'),
+        ('right', 'UMINUS'),
+    )
 
     def __init__(self):
         self.lexer = APLLexer()
@@ -34,27 +39,47 @@ class APLParser(object):
 
     def p_statement(self, p):
         '''statement : INT list
-                     | assignment_list'''
+                     | assignment'''
         p[0] = ' '.join(p[1:])
         logging.debug('statement: ' + str(list(p)))
 
-    def p_assignment_list(self, p):
-        '''assignment_list : assignment COMMA assignment_list
-                           | assignment'''
-        p[0] = ' '.join(p[1:])
-        logging.debug('assignment_list: ' + str(list(p)))
-
     def p_assignment(self, p):
-        '''assignment : ID EQUALS assignment
-                      | pointer EQUALS assignment
-                      | ID EQUALS ID
-                      | ID EQUALS AND ID
-                      | pointer EQUALS INTEGER
-                      | pointer EQUALS ID
-                      | pointer EQUALS pointer'''
+        '''assignment : ID EQUALS expression
+                      | pointer EQUALS expression'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         self.num_assignments += 1
         logging.debug('assignment: ' + str(list(p)))
+
+    def p_expression(self, p):
+        '''expression : expression PLUS expression
+                      | expression MINUS expression
+                      | expression STAR expression
+                      | expression DIVIDE expression
+                      | MINUS expression %prec UMINUS
+                      | LPAREN expression RPAREN
+                      | INTEGER
+                      | ID
+                      | deref_addr'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        logging.debug('expression: ' + str(list(p)))
+
+    def p_deref_addr(self, p):
+        '''deref_addr : deref
+                      | addr'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        logging.debug('deref_addr: ' + str(list(p)))
+
+    def p_deref(self, p):
+        '''deref : STAR deref_addr
+                 | STAR ID'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        logging.debug('deref: ' + str(list(p)))
+
+    def p_addr(self, p):
+        '''addr : AND deref_addr
+                | AND ID'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        logging.debug('addr: ' + str(list(p)))
 
     def p_list_id(self, p):
         '''list : ID COMMA list
