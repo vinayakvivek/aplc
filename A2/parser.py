@@ -20,13 +20,14 @@ class APLParser(object):
         ('right', 'UMINUS'),
     )
 
-    def __init__(self):
+    def __init__(self, file):
         self.lexer = APLLexer()
         # self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.parser = yacc.yacc(module=self, debug=True)
         self.num_pointers = 0
         self.num_static_vars = 0
         self.num_assignments = 0
+        self.file = file
 
     def p_code(self, p):
         'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
@@ -50,16 +51,16 @@ class APLParser(object):
         if not p[3].const_leaves:
             t = Token('ASGN', '=')
             p[0] = BinOp(p[1], p[3], t)
-            print(p[0])
+            self.file.write(str(p[0]) + '\n')
         else:
-            sys.stderr.write('Syntax error at %s =\n' % (p[1].token.value))
+            print('Syntax error at %s =\n' % (p[1].token.value))
             sys.exit(0)
 
     def p_assignment_deref(self, p):
         '''assignment : deref EQUALS expression'''
         t = Token('ASGN', '=')
         p[0] = BinOp(p[1], p[3], t)
-        print(p[0])
+        self.file.write(str(p[0]) + '\n')
 
     def p_expression_binop(self, p):
         '''expression : expression PLUS expression
@@ -74,7 +75,7 @@ class APLParser(object):
         elif p[2] == '*':
             t = Token('MUL', '*')
         elif p[2] == '/':
-            t = Token('DIVIDE', '/')
+            t = Token('DIV', '/')
 
         p[0] = BinOp(p[1], p[3], t)
 
@@ -146,12 +147,10 @@ class APLParser(object):
         if p:
             stack_state_str = " ".join([symbol.type for symbol
                                         in self.parser.symstack[1:]])
-            sys.stderr.write("Syntax error at '%s', type %s, on line %d\n"
-                             "Parser state: %s %s . %s\n" %
-                             (p.value, p.type, p.lineno,
-                              self.parser.state, stack_state_str, p))
+            print("Syntax error at '%s' line %d\n" %
+                             (p.value, p.lineno))
         else:
-            sys.stderr.write("Syntax error at EOF\n")
+            print("Syntax error at EOF\n")
 
     def parse(self, text):
         return self.parser.parse(text, self.lexer)

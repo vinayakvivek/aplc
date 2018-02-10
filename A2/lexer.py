@@ -29,7 +29,7 @@ class APLLexer(object):
         'EQUALS', 'PLUS', 'MINUS', 'DIVIDE'
     ] + list(reserved.values())
 
-    t_ignore = " \t\n"
+    t_ignore = " \t"
 
     t_LPAREN = r'\('
     t_RPAREN = r'\)'

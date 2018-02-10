@@ -2,7 +2,7 @@
 
 import sys
 from parser import APLParser
-
+import os
 
 if __name__ == "__main__":
 
@@ -11,12 +11,16 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     data = None
-    with open(sys.argv[1], 'r') as file:
+    data_file = sys.argv[1]
+    with open(data_file, 'r') as file:
         data = file.read()
 
-    parser = APLParser()
-    parser.parse(data)
+    dirname = os.path.dirname(data_file)
+    basename = os.path.basename(data_file)
 
-    print(parser.num_static_vars)
-    print(parser.num_pointers)
-    print(parser.num_assignments)
+    out_file = os.path.join(dirname, 'Parser_ast_' + basename + '.txt')
+    with open(out_file, 'w') as file:
+        parser = APLParser(file)
+        parser.parse(data)
+
+    print('Successfully Parsed')
