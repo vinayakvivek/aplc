@@ -44,11 +44,12 @@ class APLParser(object):
         logging.debug('statement: ' + str(list(p)))
 
     def p_assignment(self, p):
-        '''assignment : ID EQUALS expression
+        '''assignment : ID EQUALS ID
+                      | ID EQUALS deref_addr
                       | pointer EQUALS expression'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         self.num_assignments += 1
-        logging.debug('assignment: ' + str(list(p)))
+        logging.info('assignment: ' + str(list(p)))
 
     def p_expression(self, p):
         '''expression : expression PLUS expression
