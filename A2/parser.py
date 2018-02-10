@@ -2,6 +2,7 @@ import ply.yacc as yacc
 from lexer import APLLexer
 import logging
 from ast import Token, AST, BinOp, UnaryOp, Var, Const
+import sys
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,42 +35,63 @@ class APLParser(object):
     def p_body(self, p):
         '''body : statement SEMICOLON body
                 | empty'''
-        if len(p) > 2:
-            p[0] = p[1] + p[2] + p[3]
-        else:
-            p[0] = ''
+        p[0] = ' '.join([str(v) for v in p[1:]])
 
     def p_statement(self, p):
         '''statement : INT list
                      | assignment'''
-        p[0] = ' '.join(p[1:])
+        p[0] = ' '.join([str(v) for v in p[1:]])
         logging.debug('statement: ' + str(list(p)))
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
-        # TODO: check if expression is of `Const` type
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        logging.info('assignment_id: ' + str(list(p)))
+
+        # check if expression has only const leaves
+        if not p[3].const_leaves:
+            t = Token('ASGN', '=')
+            p[0] = BinOp(p[1], p[3], t)
+            print(p[0])
+        else:
+            sys.stderr.write('Syntax error at %s =\n' % (p[1].token.value))
+            sys.exit(0)
 
     def p_assignment_deref(self, p):
         '''assignment : deref EQUALS expression'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        self.num_assignments += 1
-        logging.debug('assignment: ' + str(list(p)))
+        t = Token('ASGN', '=')
+        p[0] = BinOp(p[1], p[3], t)
+        print(p[0])
 
-    def p_expression(self, p):
+    def p_expression_binop(self, p):
         '''expression : expression PLUS expression
                       | expression MINUS expression
                       | expression STAR expression
-                      | expression DIVIDE expression
-                      | MINUS expression %prec UMINUS
-                      | LPAREN expression RPAREN
-                      | int
+                      | expression DIVIDE expression'''
+        t = None
+        if p[2] == '+':
+            t = Token('PLUS', '+')
+        elif p[2] == '-':
+            t = Token('MINUS', '-')
+        elif p[2] == '*':
+            t = Token('MUL', '*')
+        elif p[2] == '/':
+            t = Token('DIVIDE', '/')
+
+        p[0] = BinOp(p[1], p[3], t)
+
+    def p_expression_uminus(self, p):
+        '''expression : MINUS expression %prec UMINUS'''
+        t = Token('UMINUS', '-')
+        p[0] = UnaryOp(p[2], t)
+
+    def p_expression_paren(self, p):
+        '''expression : LPAREN expression RPAREN'''
+        p[0] = p[2]
+
+    def p_expression_single(self, p):
+        '''expression : int
                       | id
                       | deref_addr'''
-        # TODO: if LHS ans RHS are `Const`, set `has_only_const_leaves` of AST node
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        logging.debug('expression: ' + str(list(p)))
+        p[0] = p[1]
 
     def p_deref_addr(self, p):
         '''deref_addr : deref
@@ -124,12 +146,12 @@ class APLParser(object):
         if p:
             stack_state_str = " ".join([symbol.type for symbol
                                         in self.parser.symstack[1:]])
-            raise Exception("Syntax error at '%s', type %s, on line %d\n"
-                            "Parser state: %s %s . %s" %
-                            (p.value, p.type, p.lineno,
-                             self.parser.state, stack_state_str, p))
+            sys.stderr.write("Syntax error at '%s', type %s, on line %d\n"
+                             "Parser state: %s %s . %s\n" %
+                             (p.value, p.type, p.lineno,
+                              self.parser.state, stack_state_str, p))
         else:
-            raise Exception("Syntax error at EOF")
+            sys.stderr.write("Syntax error at EOF\n")
 
     def parse(self, text):
         return self.parser.parse(text, self.lexer)

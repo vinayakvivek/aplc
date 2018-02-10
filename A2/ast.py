@@ -20,6 +20,7 @@ class BinOp(AST):
         self.left_child = left_child
         self.right_child = right_child
         self.op = token.type
+        self.const_leaves = left_child.const_leaves and right_child.const_leaves
 
     def __repr__(self):
         return self.as_string(0)
@@ -37,6 +38,7 @@ class UnaryOp(AST):
         AST.__init__(self, token)
         self.child = child
         self.op = token.type
+        self.const_leaves = child.const_leaves
 
     def __repr__(self):
         return self.as_string(0)
