@@ -57,7 +57,20 @@ class Var(AST):
 
     def as_string(self, depth=0):
         name = self.token.value
-        return '\t'*depth + 'Var(%s)\n' % (name)
+        return '\t'*depth + 'VAR(%s)\n' % (name)
+
+
+class Const(AST):
+
+    def __init__(self, token):
+        AST.__init__(self, token)
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        name = self.token.value
+        return '\t'*depth + 'CONST(%s)\n' % (name)
 
 
 if __name__ == '__main__':
@@ -65,6 +78,7 @@ if __name__ == '__main__':
     t2 = Token('VAR', 'a')
     t3 = Token('VAR', 'b')
     t4 = Token('DEREF', '*')
+    t5 = Token('CONST', '5')
 
-    tree = UnaryOp(BinOp(Var(t2), Var(t3), t1), t4)
+    tree = BinOp(UnaryOp(BinOp(Var(t2), Var(t3), t1), t4), Const(t5), t1)
     print(tree)
