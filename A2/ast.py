@@ -8,8 +8,9 @@ class Token(object):
 
 class AST(object):
 
-    def __init__(self, token):
+    def __init__(self, token, const_leaves=False):
         self.token = token
+        self.const_leaves = const_leaves
 
 
 class BinOp(AST):
@@ -63,7 +64,7 @@ class Var(AST):
 class Const(AST):
 
     def __init__(self, token):
-        AST.__init__(self, token)
+        AST.__init__(self, token, True)
 
     def __repr__(self):
         return self.as_string(0)
