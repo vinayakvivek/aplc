@@ -1,8 +1,11 @@
+#!/usr/bin/python3
+
 import ply.yacc as yacc
 from lexer import APLLexer
 import logging
-from ast import Token, AST, BinOp, UnaryOp, Var, Const
+from ast import Token, BinOp, UnaryOp, Var, Const
 import sys
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -147,10 +150,33 @@ class APLParser(object):
         if p:
             stack_state_str = " ".join([symbol.type for symbol
                                         in self.parser.symstack[1:]])
-            print("Syntax error at '%s' line %d\n" %
+            print("Syntax error at '%s' line %d" %
                              (p.value, p.lineno))
         else:
-            print("Syntax error at EOF\n")
+            print("Syntax error at EOF")
+        sys.exit(0)
 
     def parse(self, text):
         return self.parser.parse(text, self.lexer)
+
+
+if __name__ == "__main__":
+
+    if len(sys.argv) < 2:
+        print('Invalid arguments!')
+        sys.exit(-1)
+
+    data = None
+    data_file = sys.argv[1]
+    with open(data_file, 'r') as file:
+        data = file.read()
+
+    dirname = os.path.dirname(data_file)
+    basename = os.path.basename(data_file)
+
+    out_file = os.path.join(dirname, 'Parser_ast_' + basename + '.txt')
+    with open(out_file, 'w') as file:
+        parser = APLParser(file)
+        parser.parse(data)
+
+    print('Successfully Parsed')
