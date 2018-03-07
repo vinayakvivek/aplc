@@ -3,3 +3,4 @@ test*
 parser.out
 parsetab.py
 __pycache__/
+run.sh

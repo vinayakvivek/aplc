@@ -56,9 +56,13 @@ class APLParser(object):
                           | empty'''
         if p[1] is not None:
             if isinstance(p[1], list):
+                # p[1] is a block
                 p[0] = p[1] + p[2]
             else:
-                p[0] = [p[1]] + p[2]
+                if isinstance(p[1], Decl):
+                    p[0] = p[2]
+                else:
+                    p[0] = [p[1]] + p[2]
         else:
             p[0] = []
 
@@ -67,10 +71,7 @@ class APLParser(object):
                      | assignment SEMICOLON
                      | if_statement
                      | while_statement'''
-        # p[0] = ' '.join([str(v) for v in p[1:]])
-        # logging.debug('statement: ' + str(list(p)))
-        if not isinstance(p[1], Decl):
-            p[0] = p[1]
+        p[0] = p[1]
 
     def p_block_statement(self, p):
         '''block_statement : block
@@ -251,7 +252,7 @@ if __name__ == "__main__":
     dirname = os.path.dirname(data_file)
     basename = os.path.basename(data_file)
 
-    out_file = os.path.join(dirname, 'Parser_ast_' + basename + '.txt')
+    out_file = os.path.join(dirname, basename + '.ast')
     with open(out_file, 'w') as file:
         parser = APLParser(file)
         parser.parse(data)

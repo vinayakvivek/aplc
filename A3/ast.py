@@ -112,7 +112,8 @@ class If(AST):
         for stmt in self.body:
             body_string += stmt.as_string(depth + 1)
 
-        body_string += tab + '\t,\n'
+        if len(self.else_child) > 0:
+            body_string += tab + '\t,\n'
 
         for stmt in self.else_child:
             body_string += stmt.as_string(depth + 1)
