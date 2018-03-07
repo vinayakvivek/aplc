@@ -18,6 +18,10 @@ log = logging.getLogger()
 class APLParser(object):
     tokens = APLLexer.tokens
     precedence = (
+        ('left', 'BOOL_AND', 'BOOL_OR'),
+        ('left', 'AND', 'BIT_OR'),
+        ('left', 'EQ', 'NE'),
+        ('left', 'LT', 'LE', 'GT', 'GE'),
         ('left', 'PLUS', 'MINUS'),
         ('left', 'STAR', 'DIVIDE'),
         ('right', 'UMINUS'),
@@ -66,12 +70,12 @@ class APLParser(object):
     def p_if_statement(self, p):
         '''if_statement : if_header block_statement %prec IFX
                         | if_header block_statement ELSE block_statement %prec ELSE
-           if_header : IF LPAREN expression RPAREN'''
+           if_header : IF LPAREN logical_expression RPAREN'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         print('if: {\n', p[0], '\n}')
 
     def p_while_statement(self, p):
-        '''while_statement : WHILE LPAREN expression RPAREN block_statement'''
+        '''while_statement : WHILE LPAREN logical_expression RPAREN block_statement'''
         p[0] = ' '.join([str(v) for v in p[1:]])
 
     def p_declaration(self, p):
@@ -114,13 +118,43 @@ class APLParser(object):
 
         p[0] = BinOp(p[1], p[3], t)
 
+    def p_logical_expression_binop(self, p):
+        '''logical_expression : expression LT expression
+                              | expression LE expression
+                              | expression GT expression
+                              | expression GE expression
+                              | expression EQ expression
+                              | expression NE expression
+                              | logical_expression BOOL_AND logical_expression
+                              | logical_expression BOOL_OR logical_expression'''
+        t = None
+        if p[2] == '<':
+            t = Token('LT', p[2])
+        elif p[2] == '<=':
+            t = Token('LE', p[2])
+        elif p[2] == '>':
+            t = Token('GT', p[2])
+        elif p[2] == '>=':
+            t = Token('GE', p[2])
+        elif p[2] == '==':
+            t = Token('EQ', p[2])
+        elif p[2] == '!=':
+            t = Token('NE', p[2])
+        elif p[2] == '&&':
+            t = Token('AND', p[2])
+        elif p[2] == '||':
+            t = Token('OR', p[2])
+
+        p[0] = BinOp(p[1], p[3], t)
+
     def p_expression_uminus(self, p):
         '''expression : MINUS expression %prec UMINUS'''
         t = Token('UMINUS', '-')
         p[0] = UnaryOp(p[2], t)
 
     def p_expression_paren(self, p):
-        '''expression : LPAREN expression RPAREN'''
+        '''expression : LPAREN expression RPAREN
+           logical_expression : LPAREN logical_expression RPAREN'''
         p[0] = p[2]
 
     def p_expression_single(self, p):
