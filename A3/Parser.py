@@ -31,24 +31,25 @@ class APLParser(object):
         ('nonassoc', 'ELSE'),
     )
 
-    def __init__(self, file):
+    def __init__(self, ast_filename, cfg_filename):
         self.lexer = APLLexer()
         # self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.parser = yacc.yacc(module=self, debug=True)
         self.num_pointers = 0
         self.num_static_vars = 0
         self.num_assignments = 0
-        self.file = file
+        self.ast_file = open(ast_filename, 'w')
+        self.cfg_file = open(cfg_filename, 'w')
 
     def p_code(self, p):
         'code : VOID MAIN LPAREN RPAREN block'
         logging.debug('body: %s' % (p[5]))
 
         for node in p[5]:
-            self.file.write(str(node) + '\n')
+            self.ast_file.write(str(node) + '\n')
 
         cfg = CFG(p[5])
-        print(cfg)
+        self.cfg_file.write(str(cfg))
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
@@ -260,9 +261,11 @@ if __name__ == "__main__":
     dirname = os.path.dirname(data_file)
     basename = os.path.basename(data_file)
 
-    out_file = os.path.join(dirname, basename + '.ast')
-    with open(out_file, 'w') as file:
-        parser = APLParser(file)
-        parser.parse(data)
+    ast_filename = os.path.join(dirname, basename + '.ast')
+    cfg_filename = os.path.join(dirname, basename + '.cfg')
+
+    # with open(out_file, 'w') as file:
+    parser = APLParser(ast_filename, cfg_filename)
+    parser.parse(data)
 
     print('Successfully Parsed')

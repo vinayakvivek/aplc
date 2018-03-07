@@ -81,8 +81,15 @@ class CFG(object):
         n = len(ast_list)
         i = 0
 
-        while (i < n):
+        if n == 0:
+            # create a blank CFG node
+            node = CFGNode(self.node_count, [], self.temp_count)
+            self.node_count += 1
+            self.temp_count += node.temp_count
+            self.nodes.append(node)
+            node.goto = self.node_count
 
+        while (i < n):
             j = i;
             while j < n and ast_list[j].token.type == 'ASGN':
                 j += 1
