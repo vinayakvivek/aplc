@@ -31,8 +31,7 @@ class APLLexer(object):
         'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
         'EQUALS', 'PLUS', 'MINUS', 'DIVIDE',
         'LT', 'LE', 'GT', 'GE', 'EQ', 'NE',
-        'BOOL_AND', 'BOOL_OR',
-        'BIT_OR',
+        'BOOL_AND', 'BOOL_OR', 'BOOL_NOT',
     ] + list(reserved.values())
 
     t_ignore = " \t"
@@ -60,7 +59,7 @@ class APLLexer(object):
     t_NE = r'\!\='
     t_BOOL_AND = r'\&\&'
     t_BOOL_OR = r'\|\|'
-    t_BIT_OR = r'\|'
+    t_BOOL_NOT = r'\!'
 
     def t_ID(self, t):
         r'[_a-zA-Z][_a-zA-Z0-9]*'

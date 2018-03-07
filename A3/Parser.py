@@ -20,12 +20,12 @@ class APLParser(object):
     tokens = APLLexer.tokens
     precedence = (
         ('left', 'BOOL_AND', 'BOOL_OR'),
-        ('left', 'AND', 'BIT_OR'),
         ('left', 'EQ', 'NE'),
         ('left', 'LT', 'LE', 'GT', 'GE'),
         ('left', 'PLUS', 'MINUS'),
         ('left', 'STAR', 'DIVIDE'),
         ('right', 'UMINUS'),
+        ('right', 'BOOL_NOT'),
         ('nonassoc', 'IFX'),
         ('nonassoc', 'ELSE'),
     )
@@ -60,6 +60,7 @@ class APLParser(object):
                 p[0] = p[1] + p[2]
             else:
                 if isinstance(p[1], Decl):
+                    # ignore declaration statements
                     p[0] = p[2]
                 else:
                     p[0] = [p[1]] + p[2]
@@ -158,6 +159,11 @@ class APLParser(object):
             t = Token('OR', p[2])
 
         p[0] = BinOp(p[1], p[3], t)
+
+    def p_logical_expression_not(self, p):
+        '''logical_expression : BOOL_NOT logical_expression'''
+        t = Token('NOT', '!')
+        p[0] = UnaryOp(p[2], t)
 
     def p_expression_uminus(self, p):
         '''expression : MINUS expression %prec UMINUS'''
