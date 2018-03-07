@@ -21,6 +21,8 @@ class APLParser(object):
         ('left', 'PLUS', 'MINUS'),
         ('left', 'STAR', 'DIVIDE'),
         ('right', 'UMINUS'),
+        ('nonassoc', 'IFX'),
+        ('nonassoc', 'ELSE'),
     )
 
     def __init__(self, file):
@@ -39,18 +41,38 @@ class APLParser(object):
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
         p[0] = ' '.join([str(v) for v in p[1:]])
+        # logging.info('block: ' + str(list(p)))
+        # print('block: \n', p[0])
 
     def p_statement_list(self, p):
-        '''statement_list : statement SEMICOLON statement_list
+        '''statement_list : statement statement_list
                           | block statement_list
                           | empty'''
         p[0] = ' '.join([str(v) for v in p[1:]])
 
     def p_statement(self, p):
-        '''statement : declaration
-                     | assignment'''
+        '''statement : declaration SEMICOLON
+                     | assignment SEMICOLON
+                     | if_statement
+                     | while_statement'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         logging.debug('statement: ' + str(list(p)))
+
+    def p_block_statement(self, p):
+        '''block_statement : block
+                           | statement'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+
+    def p_if_statement(self, p):
+        '''if_statement : if_header block_statement %prec IFX
+                        | if_header block_statement ELSE block_statement %prec ELSE
+           if_header : IF LPAREN expression RPAREN'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        print('if: {\n', p[0], '\n}')
+
+    def p_while_statement(self, p):
+        '''while_statement : WHILE LPAREN expression RPAREN block_statement'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
 
     def p_declaration(self, p):
         '''declaration : INT list'''
