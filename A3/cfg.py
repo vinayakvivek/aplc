@@ -94,9 +94,13 @@ class CFG(object):
                 self.nodes.append(node)
                 node.goto = self.node_count
 
-            if j < n and isinstance(ast_list[j], If):
-                self.create_if_node(ast_list[j])
-                j += 1
+            if j < n:
+                if isinstance(ast_list[j], If):
+                    self.create_if_node(ast_list[j])
+                    j += 1
+                elif isinstance(ast_list[j], While):
+                    self.create_while_node(ast_list[j])
+                    j += 1
 
             i = j
 
@@ -122,6 +126,25 @@ class CFG(object):
 
         last_if_node.goto = self.node_count
         last_else_node.goto = self.node_count
+
+    def create_while_node(self, ast):
+
+        assert isinstance(ast, While)
+
+        cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, True)
+        self.node_count += 1
+        self.temp_count += cond_node.temp_count
+        self.nodes.append(cond_node)
+
+        cond_node.goto_t = self.node_count
+        self.create_nodes(ast.body)
+        last_node = self.nodes[self.node_count - 1]
+        cond_node.goto_f = self.node_count
+
+        assert not last_node.logical
+
+        last_node.goto = cond_node.id
+
 
     def __repr__(self):
 
