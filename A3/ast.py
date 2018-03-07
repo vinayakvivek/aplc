@@ -31,6 +31,8 @@ class BinOp(AST):
         return tab + name + '\n' + tab + '(\n' + self.left_child.as_string(depth + 1) +\
                tab + '\t,\n' + self.right_child.as_string(depth + 1) + tab + ')\n'
 
+    def as_line(self):
+        return self.left_child.as_line() + ' ' + str(self.token.value) + ' ' + self.right_child.as_line()
 
 class UnaryOp(AST):
 
@@ -49,6 +51,8 @@ class UnaryOp(AST):
         return tab + name + '\n' + tab + '(\n' +\
                self.child.as_string(depth + 1) + tab + ')\n'
 
+    def as_line(self):
+        return str(self.token.value) + self.child.as_line()
 
 class Decl(AST):
 
@@ -58,8 +62,8 @@ class Decl(AST):
 
 class Var(AST):
 
-    def __init__(self, token):
-        AST.__init__(self, token)
+    def __init__(self, value):
+        AST.__init__(self, Token('VAR', value))
 
     def __repr__(self):
         return self.as_string(0)
@@ -68,11 +72,14 @@ class Var(AST):
         name = self.token.value
         return '\t'*depth + 'VAR(%s)\n' % (name)
 
+    def as_line(self):
+        return str(self.token.value)
+
 
 class Const(AST):
 
-    def __init__(self, token):
-        AST.__init__(self, token, True)
+    def __init__(self, value):
+        AST.__init__(self, Token('CONST', value), True)
 
     def __repr__(self):
         return self.as_string(0)
@@ -81,24 +88,27 @@ class Const(AST):
         name = self.token.value
         return '\t'*depth + 'CONST(%s)\n' % (name)
 
+    def as_line(self):
+        return str(self.token.value)
+
 
 class If(AST):
 
-    def __init__(self, cond, body, else_child):
+    def __init__(self, cond, body, else_body):
         '''
         Args:
             cond (AST): ast of logical condition
             body (list of ASTs): asts of body statements
-            else_child (AST): ast of else part
+            else_body (AST): ast of else part
         '''
         AST.__init__(self, Token('IF', 'if'))
         self.cond = cond
         self.body = body
 
-        if else_child is None:
-            else_child = []
+        if else_body is None:
+            else_body = []
 
-        self.else_child = else_child
+        self.else_body = else_body
 
     def __repr__(self):
         return self.as_string(0)
@@ -112,10 +122,10 @@ class If(AST):
         for stmt in self.body:
             body_string += stmt.as_string(depth + 1)
 
-        if len(self.else_child) > 0:
+        if len(self.else_body) > 0:
             body_string += tab + '\t,\n'
 
-        for stmt in self.else_child:
+        for stmt in self.else_body:
             body_string += stmt.as_string(depth + 1)
 
         return body_string + tab + ')\n'

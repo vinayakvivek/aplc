@@ -5,6 +5,7 @@ from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, If, While
+from cfg import CFG
 import sys
 import os
 
@@ -45,6 +46,9 @@ class APLParser(object):
 
         for node in p[5]:
             self.file.write(str(node) + '\n')
+
+        cfg = CFG(p[5])
+        print(cfg)
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
@@ -200,13 +204,11 @@ class APLParser(object):
 
     def p_id(self, p):
         '''id : ID'''
-        t = Token('VAR', p[1])
-        p[0] = Var(t)
+        p[0] = Var(p[1])
 
     def p_int(self, p):
         '''int : INTEGER'''
-        t = Token('CONST', p[1])
-        p[0] = Const(t)
+        p[0] = Const(p[1])
 
     # list:-------
     def p_list_id(self, p):
