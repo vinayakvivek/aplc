@@ -33,19 +33,29 @@ class APLParser(object):
         self.file = file
 
     def p_code(self, p):
-        'code : VOID MAIN LPAREN RPAREN LBRACKET body RBRACKET'
-        logging.debug('body: %s' % (p[6]))
+        'code : VOID MAIN LPAREN RPAREN block'
+        logging.debug('body: %s' % (p[4]))
 
-    def p_body(self, p):
-        '''body : statement SEMICOLON body
-                | empty'''
+    def p_block(self, p):
+        '''block : LBRACKET statement_list RBRACKET'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+
+    def p_statement_list(self, p):
+        '''statement_list : statement SEMICOLON statement_list
+                          | block statement_list
+                          | empty'''
         p[0] = ' '.join([str(v) for v in p[1:]])
 
     def p_statement(self, p):
-        '''statement : INT list
+        '''statement : declaration
                      | assignment'''
         p[0] = ' '.join([str(v) for v in p[1:]])
         logging.debug('statement: ' + str(list(p)))
+
+    def p_declaration(self, p):
+        '''declaration : INT list'''
+        p[0] = ' '.join([str(v) for v in p[1:]])
+        logging.debug('declaration: ' + str(list(p)))
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
