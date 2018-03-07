@@ -3,7 +3,8 @@
 import ply.yacc as yacc
 from lexer import APLLexer
 import logging
-from ast import Token, BinOp, UnaryOp, Var, Const
+from ast import Token, BinOp, UnaryOp, Var, Const,\
+    Decl, If, While
 import sys
 import os
 
@@ -40,48 +41,60 @@ class APLParser(object):
 
     def p_code(self, p):
         'code : VOID MAIN LPAREN RPAREN block'
-        logging.debug('body: %s' % (p[4]))
+        logging.debug('body: %s' % (p[5]))
+
+        for node in p[5]:
+            self.file.write(str(node) + '\n')
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        # logging.info('block: ' + str(list(p)))
-        # print('block: \n', p[0])
+        p[0] = p[2]
 
     def p_statement_list(self, p):
         '''statement_list : statement statement_list
                           | block statement_list
                           | empty'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
+        if p[1] is not None:
+            if isinstance(p[1], list):
+                p[0] = p[1] + p[2]
+            else:
+                p[0] = [p[1]] + p[2]
+        else:
+            p[0] = []
 
     def p_statement(self, p):
         '''statement : declaration SEMICOLON
                      | assignment SEMICOLON
                      | if_statement
                      | while_statement'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        logging.debug('statement: ' + str(list(p)))
+        # p[0] = ' '.join([str(v) for v in p[1:]])
+        # logging.debug('statement: ' + str(list(p)))
+        if not isinstance(p[1], Decl):
+            p[0] = p[1]
 
     def p_block_statement(self, p):
         '''block_statement : block
                            | statement'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
+        if isinstance(p[1], list):
+            p[0] = p[1]
+        else:
+            p[0] = [p[1]]
 
     def p_if_statement(self, p):
-        '''if_statement : if_header block_statement %prec IFX
-                        | if_header block_statement ELSE block_statement %prec ELSE
-           if_header : IF LPAREN logical_expression RPAREN'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        print('if: {\n', p[0], '\n}')
+        '''if_statement : IF LPAREN logical_expression RPAREN block_statement %prec IFX'''
+        p[0] = If(p[3], p[5], None)
+
+    def p_ifelse_statement(self, p):
+        '''if_statement : IF LPAREN logical_expression RPAREN block_statement ELSE block_statement %prec ELSE'''
+        p[0] = If(p[3], p[5], p[7])
 
     def p_while_statement(self, p):
         '''while_statement : WHILE LPAREN logical_expression RPAREN block_statement'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
+        p[0] = While(p[3], p[5])
 
     def p_declaration(self, p):
         '''declaration : INT list'''
-        p[0] = ' '.join([str(v) for v in p[1:]])
-        logging.debug('declaration: ' + str(list(p)))
+        p[0] = Decl()
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
@@ -90,7 +103,6 @@ class APLParser(object):
         if not p[3].const_leaves:
             t = Token('ASGN', '=')
             p[0] = BinOp(p[1], p[3], t)
-            self.file.write(str(p[0]) + '\n')
         else:
             print('Syntax error at %s =\n' % (p[1].token.value))
             sys.exit(0)
@@ -99,7 +111,6 @@ class APLParser(object):
         '''assignment : deref EQUALS expression'''
         t = Token('ASGN', '=')
         p[0] = BinOp(p[1], p[3], t)
-        self.file.write(str(p[0]) + '\n')
 
     def p_expression_binop(self, p):
         '''expression : expression PLUS expression

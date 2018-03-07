@@ -50,6 +50,12 @@ class UnaryOp(AST):
                self.child.as_string(depth + 1) + tab + ')\n'
 
 
+class Decl(AST):
+
+    def __init__(self):
+        AST.__init__(self, Token('DECL', None))
+
+
 class Var(AST):
 
     def __init__(self, token):
@@ -75,6 +81,70 @@ class Const(AST):
         name = self.token.value
         return '\t'*depth + 'CONST(%s)\n' % (name)
 
+
+class If(AST):
+
+    def __init__(self, cond, body, else_child):
+        '''
+        Args:
+            cond (AST): ast of logical condition
+            body (list of ASTs): asts of body statements
+            else_child (AST): ast of else part
+        '''
+        AST.__init__(self, Token('IF', 'if'))
+        self.cond = cond
+        self.body = body
+
+        if else_child is None:
+            else_child = []
+
+        self.else_child = else_child
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        name = 'IF'
+        tab = '\t' * depth
+
+        body_string = tab + name + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
+
+        for stmt in self.body:
+            body_string += stmt.as_string(depth + 1)
+
+        body_string += tab + '\t,\n'
+
+        for stmt in self.else_child:
+            body_string += stmt.as_string(depth + 1)
+
+        return body_string + tab + ')\n'
+
+
+class While(AST):
+
+    def __init__(self, cond, body):
+        '''
+        Args:
+            cond (AST): ast of logical condition
+            body (list of ASTs): asts of body statements
+        '''
+        AST.__init__(self, Token('WHILE', 'while'))
+        self.cond = cond
+        self.body = body
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        name = 'WHILE'
+        tab = '\t' * depth
+
+        body_string = tab + name + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
+
+        for stmt in self.body:
+            body_string += stmt.as_string(depth + 1)
+
+        return body_string + tab + ')\n'
 
 if __name__ == '__main__':
     t1 = Token('PLUS', '+')
