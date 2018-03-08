@@ -2,10 +2,11 @@ from ast import *
 
 class CFGNode(object):
 
-    def __init__(self, _id, body, temp_start, logical=False):
+    def __init__(self, _id, body, temp_start, logical=False, end=False):
         self.id = _id
         self.body = body
         self.logical = logical
+        self.end = end
 
         if self.logical:
             self.goto_t = None
@@ -19,6 +20,8 @@ class CFGNode(object):
 
         self.process_body()
         self.body = self.temp_body
+
+        self.parents = []
 
     def process_body(self):
         for ast in self.body:
@@ -47,12 +50,17 @@ class CFGNode(object):
 
     def __repr__(self):
         string = '<bb ' + str(self.id + 1) + '>\n'
+
+        if self.end:
+            string += 'End'
+            return string
+
         for ast in self.body:
             string += ast.as_line() + '\n'
 
         if self.logical and self.goto_t and self.goto_f:
             string += 'if(t' + str(self.temp_start + self.temp_count - 1) + ') goto <bb ' + str(self.goto_t + 1) + '>\n'
-            string += 'else goto <bb' + str(self.goto_f + 1) + '>\n'
+            string += 'else goto <bb ' + str(self.goto_f + 1) + '>\n'
         elif self.goto:
             string += 'goto <bb ' + str(self.goto + 1) + '>\n'
 
@@ -72,7 +80,12 @@ class CFG(object):
         self.temp_count = 0
 
         self.create_nodes(self.asts)
-        end_node = CFGNode(self.node_count, [], self.temp_count)
+        end_node = CFGNode(self.node_count, [], self.temp_count, end=True)
+        self.nodes.append(end_node)
+        self.node_count += 1
+
+        self.clean_up()
+        end_node = CFGNode(self.node_count, [], self.temp_count, end=True)
         self.nodes.append(end_node)
         self.node_count += 1
 
@@ -81,13 +94,13 @@ class CFG(object):
         n = len(ast_list)
         i = 0
 
-        if n == 0:
-            # create a blank CFG node
-            node = CFGNode(self.node_count, [], self.temp_count)
-            self.node_count += 1
-            self.temp_count += node.temp_count
-            self.nodes.append(node)
-            node.goto = self.node_count
+        # if n == 0:
+        #     # create a blank CFG node
+        #     node = CFGNode(self.node_count, [], self.temp_count)
+        #     self.node_count += 1
+        #     self.temp_count += node.temp_count
+        #     self.nodes.append(node)
+        #     node.goto = self.node_count
 
         while (i < n):
             j = i;
@@ -110,6 +123,13 @@ class CFG(object):
                     j += 1
 
             i = j
+
+        # create a blank CFG node
+        node = CFGNode(self.node_count, [], self.temp_count)
+        self.node_count += 1
+        self.temp_count += node.temp_count
+        self.nodes.append(node)
+        node.goto = self.node_count
 
     def create_if_node(self, ast):
 
@@ -152,12 +172,59 @@ class CFG(object):
 
         last_node.goto = cond_node.id
 
+    def clean_up(self):
+        '''removes blank nodes'''
+        for node in self.nodes:
+            if node.logical:
+                if node.goto_t is not None:
+                    self.nodes[node.goto_t].parents.append((node.id, 1))
+                if node.goto_f is not None:
+                    self.nodes[node.goto_f].parents.append((node.id, 2))
+            else:
+                if node.goto is not None:
+                    self.nodes[node.goto].parents.append((node.id, 0))
+
+        num_proper_nodes = 0
+
+        # find empty nodes, redirect parents
+        for node in self.nodes:
+            if not node.body:
+                for p in node.parents:
+                    if p[1] == 0:
+                        self.nodes[p[0]].goto = node.goto
+                    elif p[1] == 1:
+                        self.nodes[p[0]].goto_t = node.goto
+                    elif p[1] == 2:
+                        self.nodes[p[0]].goto_f = node.goto
+
+                if node.goto is not None:
+                    self.nodes[node.goto].parents += node.parents
+            else:
+                num_proper_nodes += 1
+
+        # rename node ids, update gotos
+        for index, node in enumerate(self.nodes[::-1]):
+            if node.body:
+                node.id = num_proper_nodes - 1
+                num_proper_nodes -= 1
+
+                for p in node.parents:
+                    if p[1] == 0:
+                        self.nodes[p[0]].goto = node.id
+                    elif p[1] == 1:
+                        self.nodes[p[0]].goto_t = node.id
+                    elif p[1] == 2:
+                        self.nodes[p[0]].goto_f = node.id
+
+        self.nodes = [x for x in self.nodes if x.body]
+        self.node_count = len(self.nodes)
+
 
     def __repr__(self):
 
         string = ''
 
         for node in self.nodes:
-            string += str(node) + '\n'
+            string += '\n' + str(node)
 
         return string

@@ -48,8 +48,11 @@ class APLParser(object):
         for node in p[5]:
             self.ast_file.write(str(node) + '\n')
 
+        self.ast_file.close()
+
         cfg = CFG(p[5])
         self.cfg_file.write(str(cfg))
+        self.cfg_file.close()
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
