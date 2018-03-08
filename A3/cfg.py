@@ -85,9 +85,6 @@ class CFG(object):
         self.node_count += 1
 
         self.clean_up()
-        end_node = CFGNode(self.node_count, [], self.temp_count, end=True)
-        self.nodes.append(end_node)
-        self.node_count += 1
 
     def create_nodes(self, ast_list):
 
@@ -188,7 +185,7 @@ class CFG(object):
 
         # find empty nodes, redirect parents
         for node in self.nodes:
-            if not node.body:
+            if not node.body and not node.end:
                 for p in node.parents:
                     if p[1] == 0:
                         self.nodes[p[0]].goto = node.goto
@@ -204,7 +201,7 @@ class CFG(object):
 
         # rename node ids, update gotos
         for index, node in enumerate(self.nodes[::-1]):
-            if node.body:
+            if node.body or node.end:
                 node.id = num_proper_nodes - 1
                 num_proper_nodes -= 1
 
@@ -216,7 +213,8 @@ class CFG(object):
                     elif p[1] == 2:
                         self.nodes[p[0]].goto_f = node.id
 
-        self.nodes = [x for x in self.nodes if x.body]
+        # remove blank nodes
+        self.nodes = [x for x in self.nodes if x.body or x.end]
         self.node_count = len(self.nodes)
 
 
