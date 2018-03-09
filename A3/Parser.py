@@ -46,7 +46,7 @@ class APLParser(object):
         logging.debug('body: %s' % (p[5]))
 
         for node in p[5]:
-            self.ast_file.write(str(node) + '\n')
+            self.ast_file.write(str(node))
 
         self.ast_file.close()
 

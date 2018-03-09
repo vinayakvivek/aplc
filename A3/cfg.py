@@ -86,18 +86,15 @@ class CFG(object):
 
         self.clean_up()
 
+    def addNode(self, node):
+        self.node_count += 1
+        self.temp_count += node.temp_count
+        self.nodes.append(node)
+
     def create_nodes(self, ast_list):
 
         n = len(ast_list)
         i = 0
-
-        # if n == 0:
-        #     # create a blank CFG node
-        #     node = CFGNode(self.node_count, [], self.temp_count)
-        #     self.node_count += 1
-        #     self.temp_count += node.temp_count
-        #     self.nodes.append(node)
-        #     node.goto = self.node_count
 
         while (i < n):
             j = i;
@@ -106,9 +103,7 @@ class CFG(object):
 
             if i != j:
                 node = CFGNode(self.node_count, list(ast_list[i:j]), self.temp_count)
-                self.node_count += 1
-                self.temp_count += node.temp_count
-                self.nodes.append(node)
+                self.addNode(node)
                 node.goto = self.node_count
 
             if j < n:
@@ -123,9 +118,7 @@ class CFG(object):
 
         # create a blank CFG node
         node = CFGNode(self.node_count, [], self.temp_count)
-        self.node_count += 1
-        self.temp_count += node.temp_count
-        self.nodes.append(node)
+        self.addNode(node)
         node.goto = self.node_count
 
     def create_if_node(self, ast):
@@ -133,9 +126,7 @@ class CFG(object):
         assert isinstance(ast, If)
 
         cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, True)
-        self.node_count += 1
-        self.temp_count += cond_node.temp_count
-        self.nodes.append(cond_node)
+        self.addNode(cond_node)
 
         cond_node.goto_t = self.node_count
         self.create_nodes(ast.body)
@@ -156,9 +147,7 @@ class CFG(object):
         assert isinstance(ast, While)
 
         cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, True)
-        self.node_count += 1
-        self.temp_count += cond_node.temp_count
-        self.nodes.append(cond_node)
+        self.addNode(cond_node)
 
         cond_node.goto_t = self.node_count
         self.create_nodes(ast.body)
