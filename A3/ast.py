@@ -117,7 +117,7 @@ class If(AST):
         name = 'IF'
         tab = '\t' * depth
 
-        body_string = tab + name + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
+        body_string = tab + name + '\n' + tab + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
 
         for stmt in self.body:
             body_string += stmt.as_string(depth + 1)
@@ -150,7 +150,7 @@ class While(AST):
         name = 'WHILE'
         tab = '\t' * depth
 
-        body_string = tab + name + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
+        body_string = tab + name + '\n' + tab + '(\n' + self.cond.as_string(depth + 1) + tab + '\t,\n'
 
         for stmt in self.body:
             body_string += stmt.as_string(depth + 1)
