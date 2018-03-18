@@ -54,6 +54,7 @@ class UnaryOp(AST):
     def as_line(self):
         return str(self.token.value) + self.child.as_line()
 
+
 class Decl(AST):
 
     def __init__(self):
@@ -156,6 +157,30 @@ class While(AST):
             body_string += stmt.as_string(depth + 1)
 
         return body_string + tab + ')\n'
+
+
+class Function(AST):
+
+    def __init__(self, name, params, return_type, body):
+        AST.__init__(self, Token('FUNC', name))
+        self.name = name
+        self.params = params
+        self.return_type = return_type
+        self.body = body
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        signature = self.name + '(' + str(self.params) + ') -> ' + str(self.return_type)
+        tab = '\t' * depth
+
+        body_string = tab + signature + '\n' + tab + '(\n'
+        for stmt in self.body:
+            body_string += stmt.as_string(depth + 1)
+
+        return body_string + tab + ')\n'
+
 
 if __name__ == '__main__':
     t1 = Token('PLUS', '+')

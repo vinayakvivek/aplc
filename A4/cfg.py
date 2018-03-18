@@ -104,7 +104,7 @@ class CFG(object):
         i = 0
 
         while (i < n):
-            j = i;
+            j = i
             while j < n and ast_list[j].token.type == 'ASGN':
                 j += 1
 
@@ -119,6 +119,8 @@ class CFG(object):
                     j += 1
                 elif isinstance(ast_list[j], While):
                     self.create_while_node(ast_list[j])
+                    j += 1
+                else:
                     j += 1
 
             i = j

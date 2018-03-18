@@ -1,10 +1,8 @@
-#!/usr/bin/python3
-
 import ply.yacc as yacc
 from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
-    Decl, If, While
+    Decl, If, While, Function
 from cfg import CFG
 import sys
 import os
@@ -35,24 +33,42 @@ class APLParser(object):
         self.lexer = APLLexer()
         # self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.parser = yacc.yacc(module=self, debug=True)
-        self.num_pointers = 0
-        self.num_static_vars = 0
-        self.num_assignments = 0
         self.ast_file = open(ast_filename, 'w')
         self.cfg_file = open(cfg_filename, 'w')
 
     def p_code(self, p):
-        'code : VOID MAIN LPAREN RPAREN block'
-        logging.debug('body: %s' % (p[5]))
+        'code : global_statement_list'
+        logging.debug('code: %s' % (p[1]))
 
-        for node in p[5]:
+        for node in p[1]:
             self.ast_file.write(str(node))
 
         self.ast_file.close()
 
-        cfg = CFG(p[5])
+        cfg = CFG(p[1])
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
+
+    def p_global_statement_list(self, p):
+        '''global_statement_list : global_statement global_statement_list
+                                 | empty'''
+        if p[1] is not None:
+            if isinstance(p[1], Decl):
+                # ignore declaration statements
+                p[0] = p[2]
+            else:
+                p[0] = [p[1]] + p[2]
+        else:
+            p[0] = []
+
+    def p_global_statement(self, p):
+        '''global_statement : declaration SEMICOLON
+                            | function_def'''
+        p[0] = p[1]
+
+    def p_function_def(self, p):
+        '''function_def : VOID MAIN LPAREN RPAREN block'''
+        p[0] = Function(p[2], [], p[1], p[5])
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
@@ -219,13 +235,11 @@ class APLParser(object):
         '''list : ID COMMA list
                 | ID'''
         p[0] = ' '.join(p[1:])
-        self.num_static_vars += 1
 
     def p_list_pointer(self, p):
         '''list : pointer COMMA list
                 | pointer'''
         p[0] = ' '.join(p[1:])
-        self.num_pointers += 1
 
     def p_pointer(self, p):
         '''pointer : STAR pointer
@@ -238,10 +252,10 @@ class APLParser(object):
 
     def p_error(self, p):
         if p:
-            stack_state_str = " ".join([symbol.type for symbol
-                                        in self.parser.symstack[1:]])
+            # stack_state_str = " ".join([symbol.type for symbol
+            #                             in self.parser.symstack[1:]])
             print("Syntax error at '%s' line %d" %
-                             (p.value, p.lineno))
+                  (p.value, p.lineno))
         else:
             print("Syntax error at EOF")
         sys.exit(0)
