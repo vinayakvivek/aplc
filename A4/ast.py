@@ -57,8 +57,10 @@ class UnaryOp(AST):
 
 class Decl(AST):
 
-    def __init__(self):
-        AST.__init__(self, Token('DECL', None))
+    def __init__(self, dtype='void', ids=[]):
+        AST.__init__(self, Token('DECL', dtype))
+        self.dtype = dtype
+        self.ids = ids
 
 
 class Var(AST):

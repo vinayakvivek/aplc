@@ -63,12 +63,35 @@ class APLParser(object):
 
     def p_global_statement(self, p):
         '''global_statement : declaration SEMICOLON
-                            | function_def'''
+                            | function_def
+                            | main_function_def'''
         p[0] = p[1]
 
-    def p_function_def(self, p):
-        '''function_def : VOID MAIN LPAREN RPAREN block'''
+    def p_main_function_def(self, p):
+        '''main_function_def : VOID MAIN LPAREN RPAREN block'''
         p[0] = Function(p[2], [], p[1], p[5])
+
+    def p_function_def(self, p):
+        '''function_def : type ID LPAREN RPAREN block
+                        | type stars ID LPAREN RPAREN block'''
+        if len(p) == 6:
+            p[0] = Function(p[2], [], p[1], p[5])
+        elif len(p) == 7:
+            p[0] = Function(p[3], [], p[1] + p[2], p[6])
+
+    def p_type(self, p):
+        '''type : INT
+                | FLOAT'''
+        p[0] = p[1]
+
+    def p_stars(self, p):
+        '''stars : STAR stars
+                 | STAR'''
+        # one or more STARS
+        if len(p) > 2:
+            p[0] = p[1] + p[2]
+        else:
+            p[0] = p[1]
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
@@ -119,7 +142,7 @@ class APLParser(object):
         p[0] = While(p[3], p[5])
 
     def p_declaration(self, p):
-        '''declaration : INT list'''
+        '''declaration : type list'''
         p[0] = Decl()
 
     def p_assignment_id(self, p):
@@ -237,14 +260,13 @@ class APLParser(object):
         p[0] = ' '.join(p[1:])
 
     def p_list_pointer(self, p):
-        '''list : pointer COMMA list
-                | pointer'''
+        '''list : stars ID COMMA list
+                | stars ID'''
         p[0] = ' '.join(p[1:])
 
-    def p_pointer(self, p):
-        '''pointer : STAR pointer
-                   | STAR ID'''
-        p[0] = ''.join(p[1:])
+    # def p_pointer(self, p):
+    #     '''pointer : stars ID'''
+    #     p[0] = ''.join(p[1:])
 
     def p_empty(self, p):
         'empty :'

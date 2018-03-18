@@ -18,6 +18,7 @@ class APLLexer(object):
 
     reserved = {
         'int': 'INT',
+        'float': 'FLOAT',
         'void': 'VOID',
         'main': 'MAIN',
         'if': 'IF',
