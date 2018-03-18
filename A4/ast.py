@@ -163,7 +163,7 @@ class While(AST):
 
 class Function(AST):
 
-    def __init__(self, name, params, return_type, body):
+    def __init__(self, return_type, name, params, body):
         AST.__init__(self, Token('FUNC', name))
         self.name = name
         self.params = params
@@ -174,7 +174,7 @@ class Function(AST):
         return self.as_string(0)
 
     def as_string(self, depth=0):
-        signature = self.name + '(' + str(self.params) + ') -> ' + str(self.return_type)
+        signature = str(self.name) + '(' + str(self.params) + ') -> ' + str(self.return_type)
         tab = '\t' * depth
 
         body_string = tab + signature + '\n' + tab + '(\n'

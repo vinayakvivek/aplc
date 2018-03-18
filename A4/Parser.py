@@ -64,6 +64,7 @@ class APLParser(object):
     def p_global_statement(self, p):
         '''global_statement : declaration SEMICOLON
                             | function_def
+                            | function_proto
                             | main_function_def'''
         p[0] = p[1]
 
@@ -72,12 +73,40 @@ class APLParser(object):
         p[0] = Function(p[2], [], p[1], p[5])
 
     def p_function_def(self, p):
-        '''function_def : type ID LPAREN RPAREN block
-                        | type stars ID LPAREN RPAREN block'''
-        if len(p) == 6:
-            p[0] = Function(p[2], [], p[1], p[5])
-        elif len(p) == 7:
-            p[0] = Function(p[3], [], p[1] + p[2], p[6])
+        '''function_def : type ID LPAREN formal_param_list RPAREN block
+                        | type stars ID LPAREN formal_param_list RPAREN block'''
+        if len(p) == 7:
+            p[0] = Function(p[1], p[2], p[4], p[6])
+        elif len(p) == 8:
+            p[0] = Function(p[1] + p[2], p[3], p[5], p[7])
+
+    def p_function_proto(self, p):
+        '''function_proto : type ID LPAREN formal_param_list RPAREN SEMICOLON
+                          | type stars ID LPAREN formal_param_list RPAREN SEMICOLON'''
+        if len(p) == 7:
+            p[0] = Function(p[1], p[2], p[4], [])
+        elif len(p) == 8:
+            p[0] = Function(p[1] + p[2], p[3], p[5], [])
+
+    def p_formal_param_list(self, p):
+        '''formal_param_list : formal_param COMMA formal_param_list
+                             | formal_param
+                             | empty'''
+        if len(p) == 4:
+            p[0] = [p[1]] + p[3]
+        elif len(p) == 2:
+            if p[1]:
+                p[0] = [p[1]]
+            else:
+                p[0] = []
+
+    def p_formal_param(self, p):
+        '''formal_param : type ID
+                        | type stars ID'''
+        if len(p) > 3:
+            p[0] = p[1] + p[2] + ' ' + p[3]
+        else:
+            p[0] = p[1] + ' ' + p[2]
 
     def p_type(self, p):
         '''type : INT
