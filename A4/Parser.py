@@ -2,7 +2,7 @@ import ply.yacc as yacc
 from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
-    Decl, DeclList, If, While, Function, Param
+    Decl, DeclList, If, While, Function, Param, Block
 from cfg import CFG
 from symbol_table import Type, SymbolTable
 import sys
@@ -78,26 +78,26 @@ class APLParser(object):
 
     def p_main_function_def(self, p):
         '''main_function_def : VOID MAIN LPAREN RPAREN block'''
-        p[0] = Function(p[1], p[2], [], p[5])
+        p[0] = Function(p[1], p[2], [], p[5].asts)
 
     def p_function_def(self, p):
         '''function_def : type ID LPAREN formal_param_list RPAREN block
                         | type stars ID LPAREN formal_param_list RPAREN block'''
         if len(p) == 7:
-            p[0] = Function(p[1], p[2], p[4], p[6])
+            p[0] = Function(p[1], p[2], p[4], p[6].asts)
             # self.curr_symtable = self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=False)
         elif len(p) == 8:
-            p[0] = Function(p[1] + p[2], p[3], p[5], p[7])
+            p[0] = Function(p[1] + p[2], p[3], p[5], p[7].asts)
             # self.curr_symtable = self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
 
     def p_function_proto(self, p):
         '''function_proto : type ID LPAREN formal_param_list RPAREN SEMICOLON
                           | type stars ID LPAREN formal_param_list RPAREN SEMICOLON'''
         if len(p) == 7:
-            p[0] = Function(p[1], p[2], p[4], [])
+            p[0] = Function(p[1], p[2], p[4], None)
             # self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=True)
         elif len(p) == 8:
-            p[0] = Function(p[1] + p[2], p[3], p[5], [])
+            p[0] = Function(p[1] + p[2], p[3], p[5], None)
             # self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
 
     def p_formal_param_list(self, p):
@@ -136,7 +136,7 @@ class APLParser(object):
 
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
-        p[0] = p[2]
+        p[0] = Block(p[2])
         # self.curr_symtable = self.curr_symtable.parent
 
     def p_statement_list(self, p):
@@ -144,15 +144,15 @@ class APLParser(object):
                           | block statement_list
                           | empty'''
         if p[1] is not None:
-            if isinstance(p[1], list):
-                # p[1] is a block
-                p[0] = p[1] + p[2]
-            else:
+            # if isinstance(p[1], list):
+            #     # p[1] is a block
+            #     p[0] = p[1] + p[2]
+            # else:
                 # if isinstance(p[1], Decl):
                 #     # ignore declaration statements
                 #     p[0] = p[2]
                 # else:
-                p[0] = [p[1]] + p[2]
+            p[0] = [p[1]] + p[2]
         else:
             p[0] = []
 
@@ -166,8 +166,8 @@ class APLParser(object):
     def p_block_statement(self, p):
         '''block_statement : block
                            | statement'''
-        if isinstance(p[1], list):
-            p[0] = p[1]
+        if isinstance(p[1], Block):
+            p[0] = p[1].asts
         else:
             p[0] = [p[1]]
 

@@ -1,6 +1,6 @@
 from enum import Enum
 from collections import OrderedDict
-
+from ast import Decl, DeclList, Function
 
 class Type(object):
 
@@ -100,3 +100,15 @@ class SymbolTable(object):
             if v['type'] == 'function':
                 sym_string += '\n\n' + str(v['table_ptr']) + '\n'
         return sym_string
+
+
+# def create_table(ast_list, parent=None):
+
+#     curr_symtable = SymbolTable(parent)
+
+#     for ast in ast_list:
+#         if isinstance(ast, DeclList):
+#             for v in ast.vars:
+#                 curr_symtable.add_var(v.id, Type(v.dtype, v.pointer_level))
+
+#         if isinstance(ast, Function):

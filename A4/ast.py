@@ -194,6 +194,11 @@ class Function(AST):
         self.params = params
         self.return_type = return_type
         self.body = body
+        self.has_def = True
+
+        if self.body is None:
+            self.body = []
+            self.has_def = False
 
     def __repr__(self):
         return self.as_string(0)
@@ -231,6 +236,29 @@ class Param(AST):
     def as_string(self, depth=0):
         tab = '\t' * depth
         return tab + self.dtype + '*'*self.pointer_level + ' ' + (self.id if self.id is not None else '')
+
+
+
+class Block(AST):
+
+    def __init__(self, ast_list):
+        AST.__init__(self, Token('BLOCK', 'block'))
+        self.asts = ast_list
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        name = 'BLOCK'
+        tab = '\t' * depth
+
+        body_string = tab + name + '\n' + tab + '(\n'
+
+        for ast in self.asts:
+            body_string += ast.as_string(depth + 1)
+
+        return body_string + tab + ')\n'
+
 
 
 if __name__ == '__main__':
