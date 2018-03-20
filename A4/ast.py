@@ -34,6 +34,7 @@ class BinOp(AST):
     def as_line(self):
         return self.left_child.as_line() + ' ' + str(self.token.value) + ' ' + self.right_child.as_line()
 
+
 class UnaryOp(AST):
 
     def __init__(self, child, token):
@@ -57,10 +58,34 @@ class UnaryOp(AST):
 
 class Decl(AST):
 
-    def __init__(self, dtype='void', ids=[]):
+    def __init__(self, _id, dtype, pointer_level=0):
         AST.__init__(self, Token('DECL', dtype))
         self.dtype = dtype
-        self.ids = ids
+        self.id = _id
+        self.pointer_level = pointer_level
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        tab = '\t' * depth
+        return tab + self.dtype + '*'*self.pointer_level + ' ' + self.id + '\n'
+
+
+class DeclList(AST):
+
+    def __init__(self, _vars):
+        AST.__init__(self, Token('DECLLIST', 'dlist'))
+        self.vars = _vars
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        ret_string = ''
+        for v in self.vars:
+            ret_string += v.as_string(depth)
+        return ret_string
 
 
 class Var(AST):
@@ -174,7 +199,15 @@ class Function(AST):
         return self.as_string(0)
 
     def as_string(self, depth=0):
-        signature = str(self.name) + '(' + str(self.params) + ') -> ' + str(self.return_type)
+        signature = str(self.name) + '('
+
+        if len(self.params) > 0:
+            for i in range(len(self.params) - 1):
+                signature += str(self.params[i]) + ', '
+            signature += str(self.params[len(self.params) - 1])
+
+        signature += ') -> ' + str(self.return_type)
+
         tab = '\t' * depth
 
         body_string = tab + signature + '\n' + tab + '(\n'
@@ -182,6 +215,22 @@ class Function(AST):
             body_string += stmt.as_string(depth + 1)
 
         return body_string + tab + ')\n'
+
+
+class Param(AST):
+
+    def __init__(self, _id, dtype, pointer_level=0):
+        AST.__init__(self, Token('PARAM', dtype))
+        self.dtype = dtype
+        self.id = _id
+        self.pointer_level = pointer_level
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        tab = '\t' * depth
+        return tab + self.dtype + '*'*self.pointer_level + ' ' + (self.id if self.id is not None else '')
 
 
 if __name__ == '__main__':

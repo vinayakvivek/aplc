@@ -2,8 +2,9 @@ import ply.yacc as yacc
 from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
-    Decl, If, While, Function
+    Decl, DeclList, If, While, Function, Param
 from cfg import CFG
+from symbol_table import Type, SymbolTable
 import sys
 import os
 
@@ -36,6 +37,11 @@ class APLParser(object):
         self.ast_file = open(ast_filename, 'w')
         self.cfg_file = open(cfg_filename, 'w')
 
+        # self.global_symtable = SymbolTable()
+        # self.curr_symtable = self.global_symtable
+
+        # print(self.global_symtable)
+
     def p_code(self, p):
         'code : global_statement_list'
         logging.debug('code: %s' % (p[1]))
@@ -49,15 +55,17 @@ class APLParser(object):
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
 
+        # print(self.global_symtable)
+
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
                                  | empty'''
         if p[1] is not None:
-            if isinstance(p[1], Decl):
-                # ignore declaration statements
-                p[0] = p[2]
-            else:
-                p[0] = [p[1]] + p[2]
+            # if isinstance(p[1], Decl):
+            #     # ignore declaration statements
+            #     p[0] = p[2]
+            # else:
+            p[0] = [p[1]] + p[2]
         else:
             p[0] = []
 
@@ -70,23 +78,27 @@ class APLParser(object):
 
     def p_main_function_def(self, p):
         '''main_function_def : VOID MAIN LPAREN RPAREN block'''
-        p[0] = Function(p[2], [], p[1], p[5])
+        p[0] = Function(p[1], p[2], [], p[5])
 
     def p_function_def(self, p):
         '''function_def : type ID LPAREN formal_param_list RPAREN block
                         | type stars ID LPAREN formal_param_list RPAREN block'''
         if len(p) == 7:
             p[0] = Function(p[1], p[2], p[4], p[6])
+            # self.curr_symtable = self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=False)
         elif len(p) == 8:
             p[0] = Function(p[1] + p[2], p[3], p[5], p[7])
+            # self.curr_symtable = self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
 
     def p_function_proto(self, p):
         '''function_proto : type ID LPAREN formal_param_list RPAREN SEMICOLON
                           | type stars ID LPAREN formal_param_list RPAREN SEMICOLON'''
         if len(p) == 7:
             p[0] = Function(p[1], p[2], p[4], [])
+            # self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=True)
         elif len(p) == 8:
             p[0] = Function(p[1] + p[2], p[3], p[5], [])
+            # self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
 
     def p_formal_param_list(self, p):
         '''formal_param_list : formal_param COMMA formal_param_list
@@ -104,9 +116,9 @@ class APLParser(object):
         '''formal_param : type ID
                         | type stars ID'''
         if len(p) > 3:
-            p[0] = p[1] + p[2] + ' ' + p[3]
+            p[0] = Param(p[3], p[1], len(p[2]))
         else:
-            p[0] = p[1] + ' ' + p[2]
+            p[0] = Param(p[2], p[1], 0)
 
     def p_type(self, p):
         '''type : INT
@@ -125,6 +137,7 @@ class APLParser(object):
     def p_block(self, p):
         '''block : LBRACKET statement_list RBRACKET'''
         p[0] = p[2]
+        # self.curr_symtable = self.curr_symtable.parent
 
     def p_statement_list(self, p):
         '''statement_list : statement statement_list
@@ -135,11 +148,11 @@ class APLParser(object):
                 # p[1] is a block
                 p[0] = p[1] + p[2]
             else:
-                if isinstance(p[1], Decl):
-                    # ignore declaration statements
-                    p[0] = p[2]
-                else:
-                    p[0] = [p[1]] + p[2]
+                # if isinstance(p[1], Decl):
+                #     # ignore declaration statements
+                #     p[0] = p[2]
+                # else:
+                p[0] = [p[1]] + p[2]
         else:
             p[0] = []
 
@@ -172,7 +185,14 @@ class APLParser(object):
 
     def p_declaration(self, p):
         '''declaration : type list'''
-        p[0] = Decl()
+        decl_vars = []
+        for v in p[2]:
+            decl_vars.append(Decl(v[0], p[1], v[1]))
+
+        p[0] = DeclList(decl_vars)
+        # for v in p[2]:
+        #     # v <- (id, pointer_level)
+        #     self.curr_symtable.add_var(v[0], Type(p[1], v[1]))
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
@@ -286,12 +306,18 @@ class APLParser(object):
     def p_list_id(self, p):
         '''list : ID COMMA list
                 | ID'''
-        p[0] = ' '.join(p[1:])
+        if len(p) > 2:
+            p[0] = [(p[1], 0)] + p[3]
+        else:
+            p[0] = [(p[1], 0)]
 
     def p_list_pointer(self, p):
         '''list : stars ID COMMA list
                 | stars ID'''
-        p[0] = ' '.join(p[1:])
+        if len(p) > 3:
+            p[0] = [(p[2], len(p[1]))] + p[3]
+        else:
+            p[0] = [(p[2], len(p[1]))]
 
     # def p_pointer(self, p):
     #     '''pointer : stars ID'''

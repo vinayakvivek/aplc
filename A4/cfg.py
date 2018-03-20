@@ -1,5 +1,6 @@
 from ast import *
 
+
 class CFGNode(object):
 
     def __init__(self, _id, body, temp_start, logical=False, end=False):
