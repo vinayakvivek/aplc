@@ -188,11 +188,11 @@ class While(AST):
 
 class Function(AST):
 
-    def __init__(self, return_type, name, params, body):
+    def __init__(self, ret_type, name, params, body):
         AST.__init__(self, Token('FUNC', name))
         self.name = name
         self.params = params
-        self.return_type = return_type
+        self.ret_type = ret_type
         self.body = body
         self.has_def = True
 
@@ -211,7 +211,7 @@ class Function(AST):
                 signature += str(self.params[i]) + ', '
             signature += str(self.params[len(self.params) - 1])
 
-        signature += ') -> ' + str(self.return_type)
+        signature += ') -> ' + str(self.ret_type)
 
         tab = '\t' * depth
 
@@ -236,7 +236,6 @@ class Param(AST):
     def as_string(self, depth=0):
         tab = '\t' * depth
         return tab + self.dtype + '*'*self.pointer_level + ' ' + (self.id if self.id is not None else '')
-
 
 
 class Block(AST):
