@@ -5,7 +5,7 @@ from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, DeclList, If, While, Function, Param, Block,\
     FunctionCall
 from cfg import CFG
-from symbol_table import Type, create_symtable
+from symbol_table import Type, create_symtable, print_symbol_tables
 import sys
 import os
 
@@ -56,8 +56,10 @@ class APLParser(object):
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
 
-        self.global_symtable = create_symtable(p[1])
-        print(self.global_symtable)
+        self.global_symtable = create_symtable('global', None, p[1])
+        # print(self.global_symtable)
+        print_symbol_tables()
+
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
