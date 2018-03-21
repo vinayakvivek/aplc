@@ -2,6 +2,7 @@ from enum import Enum
 from collections import OrderedDict
 from ast import Decl, DeclList, Function, Block
 
+
 class Type(object):
 
     size = {
@@ -32,6 +33,7 @@ class Type(object):
         if isinstance(other, Type):
             return (self.type == other.type and self.pointer_level == other.pointer_level)
         return False
+
 
 class SymbolTable(object):
 
@@ -142,22 +144,6 @@ def create_symtable(ast_list, parent=None):
 
     for ast in ast_list:
         parse_ast(ast, curr_symtable)
-        # if isinstance(ast, DeclList):
-        #     for v in ast.vars:
-        #         curr_symtable.add_var(v.id, Type(v.dtype, v.pointer_level))
-
-        # elif isinstance(ast, Function):
-        #     # params = [(x.id, Type(x.dtype, x.pointer_level)) for x in ast.params]
-        #     # f_symtable = SymbolTable(curr_symtable)
-
-        #     entry = curr_symtable.look_up(ast.name)
-        #     f_symtable = SymbolTable(curr_symtable) if entry is None else entry['table_ptr']
-        #     populate_function_symtable(ast, f_symtable)
-
-        #     curr_symtable.add_function(ast.name, ast.ret_type, ast.params, f_symtable, not ast.has_def)
-
-        # elif isinstance(ast, Block):
-        #     create_symtable(ast.ast_list, curr_symtable)
 
     return curr_symtable
 
@@ -185,12 +171,3 @@ def populate_function_symtable(f_ast, symtable, is_new=False):
 
     for ast in f_ast.body:
         parse_ast(ast, symtable)
-        # if isinstance(ast, DeclList):
-        #     for v in ast.vars:
-        #         symtable.add_var(v.id, Type(v.dtype, v.pointer_level))
-        # elif isinstance(ast, Block):
-        #     create_symtable(ast.ast_list, symtable)
-
-
-
-

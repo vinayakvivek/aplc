@@ -259,6 +259,32 @@ class Block(AST):
         return body_string + tab + ')\n'
 
 
+class FunctionCall(AST):
+
+    def __init__(self, _id, actual_params):
+        """
+        Args:
+            _id (str)
+            actual_params (list of asts)
+        """
+        AST.__init__(self, Token('FUNC_CALL', _id))
+        self.id = _id
+        self.actual_params = actual_params
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        tab = '\t' * depth
+        body_string = tab + 'CALL ' + self.id + '(\n'
+        for i, p in enumerate(self.actual_params):
+            body_string += p.as_string(depth + 1)
+            if i != len(self.actual_params) - 1:
+                body_string += tab + '\t,\n'
+
+        body_string += tab + ')\n'
+        return body_string
+
 
 if __name__ == '__main__':
     t1 = Token('PLUS', '+')

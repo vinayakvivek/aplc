@@ -2,9 +2,10 @@ import ply.yacc as yacc
 from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
-    Decl, DeclList, If, While, Function, Param, Block
+    Decl, DeclList, If, While, Function, Param, Block,\
+    FunctionCall
 from cfg import CFG
-from symbol_table import Type, SymbolTable, create_symtable
+from symbol_table import Type, create_symtable
 import sys
 import os
 
@@ -153,7 +154,8 @@ class APLParser(object):
         '''statement : declaration SEMICOLON
                      | assignment SEMICOLON
                      | if_statement
-                     | while_statement'''
+                     | while_statement
+                     | function_call SEMICOLON'''
         p[0] = p[1]
 
     def p_block_statement(self, p):
@@ -176,6 +178,19 @@ class APLParser(object):
         '''while_statement : WHILE LPAREN logical_expression RPAREN block_statement'''
         p[0] = While(p[3], p[5])
 
+    def p_function_call(self, p):
+        '''function_call : ID LPAREN expr_list RPAREN'''
+        p[0] = FunctionCall(p[1], p[3])
+
+    def p_expr_list(self, p):
+        '''expr_list : expression COMMA expr_list
+                     | expression
+                     | empty'''
+        if len(p) > 2:
+            p[0] = [p[1]] + p[3]
+        else:
+            p[0] = [p[1]] if p[1] is not None else []
+
     def p_declaration(self, p):
         '''declaration : type list'''
         decl_vars = []
@@ -183,9 +198,6 @@ class APLParser(object):
             decl_vars.append(Decl(v[0], p[1], v[1]))
 
         p[0] = DeclList(decl_vars)
-        # for v in p[2]:
-        #     # v <- (id, pointer_level)
-        #     self.curr_symtable.add_var(v[0], Type(p[1], v[1]))
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
