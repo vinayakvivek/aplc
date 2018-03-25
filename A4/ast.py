@@ -286,6 +286,28 @@ class FunctionCall(AST):
         return body_string
 
 
+class ReturnStmt(AST):
+
+    def __init__(self, expression):
+        '''
+        Args:
+            expression (AST) - ast of return expression
+        '''
+        AST.__init__(self, Token('RETURN', ''))
+        self.expression = expression
+
+    def __repr__(self):
+        return self.as_string(0)
+
+    def as_string(self, depth=0):
+        tab = '\t' * depth
+        body_string = tab + 'RETURN\n'
+        if self.expression is not None:
+            body_string = tab + '(\n' +\
+                self.expression.as_string(depth + 1) + tab + ')\n'
+        return body_string
+
+
 if __name__ == '__main__':
     t1 = Token('PLUS', '+')
     t2 = Token('VAR', 'a')

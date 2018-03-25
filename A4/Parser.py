@@ -3,7 +3,7 @@ from lexer import APLLexer
 import logging
 from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, DeclList, If, While, Function, Param, Block,\
-    FunctionCall
+    FunctionCall, ReturnStmt
 from cfg import CFG
 from symbol_table import Type, create_symtable, print_symbol_tables
 import sys
@@ -157,8 +157,17 @@ class APLParser(object):
                      | assignment SEMICOLON
                      | if_statement
                      | while_statement
-                     | function_call SEMICOLON'''
+                     | function_call SEMICOLON
+                     | return_statement SEMICOLON'''
         p[0] = p[1]
+
+    def p_return_statement(self, p):
+        '''return_statement : RETURN expression
+                            | RETURN'''
+        if len(p) > 2:
+            p[0] = ReturnStmt(p[2])
+        else:
+            p[0] = ReturnStmt(None)
 
     def p_block_statement(self, p):
         '''block_statement : block
@@ -281,7 +290,8 @@ class APLParser(object):
     def p_expression_single(self, p):
         '''expression : int
                       | id
-                      | deref_addr'''
+                      | deref_addr
+                      | function_call'''
         p[0] = p[1]
 
     def p_deref_addr(self, p):
@@ -306,7 +316,9 @@ class APLParser(object):
         p[0] = Var(p[1])
 
     def p_int(self, p):
-        '''int : INTEGER'''
+        '''int : INTEGER
+               | REAL'''
+        print(p[1])
         p[0] = Const(p[1])
 
     # list:-------
@@ -322,7 +334,7 @@ class APLParser(object):
         '''list : stars ID COMMA list
                 | stars ID'''
         if len(p) > 3:
-            p[0] = [(p[2], len(p[1]))] + p[3]
+            p[0] = [(p[2], len(p[1]))] + p[4]
         else:
             p[0] = [(p[2], len(p[1]))]
 

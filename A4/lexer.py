@@ -24,10 +24,11 @@ class APLLexer(object):
         'if': 'IF',
         'else': 'ELSE',
         'while': 'WHILE',
+        'return': 'RETURN',
     }
 
     tokens = [
-        'INTEGER', 'ID',
+        'REAL', 'INTEGER', 'ID',
         'STAR', 'SEMICOLON', 'COMMA', 'AND',
         'LPAREN', 'RPAREN', 'LBRACKET', 'RBRACKET',
         'EQUALS', 'PLUS', 'MINUS', 'DIVIDE',
@@ -66,6 +67,16 @@ class APLLexer(object):
         r'[_a-zA-Z][_a-zA-Z0-9]*'
         # Check for reserved words
         t.type = APLLexer.reserved.get(t.value, 'ID')
+        return t
+
+    def t_REAL(self, t):
+        r'([0-9]+[.][0-9]*|[.][0-9]+)'
+        try:
+            print(t.value)
+            t.value = float(t.value)
+        except ValueError:
+            print("float value too large %d", t.value)
+            t.value = 0
         return t
 
     def t_INTEGER(self, t):
