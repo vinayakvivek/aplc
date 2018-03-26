@@ -211,7 +211,7 @@ class Function(AST):
                 signature += str(self.params[i]) + ', '
             signature += str(self.params[len(self.params) - 1])
 
-        signature += ') -> ' + str(self.ret_type)
+        signature += ') -> ' + self.ret_type[0] + '*'*self.ret_type[1]
 
         tab = '\t' * depth
 

@@ -5,7 +5,7 @@ from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, DeclList, If, While, Function, Param, Block,\
     FunctionCall, ReturnStmt
 from cfg import CFG
-from symbol_table import Type, create_symtable, print_symbol_tables
+from symtablev2 import mktable, Stack
 import sys
 import os
 
@@ -38,10 +38,18 @@ class APLParser(object):
         self.ast_file = open(ast_filename, 'w')
         self.cfg_file = open(cfg_filename, 'w')
 
-        # self.global_symtable = SymbolTable()
-        # self.curr_symtable = self.global_symtable
+        self.offset = Stack()
+        self.tableptr = Stack()
+        self.nest_level = 1
 
-        # print(self.global_symtable)
+        self.offset.push(0)
+        print('creating symtable')
+        self.tableptr.push(mktable(None))
+
+        self.last_id = None
+        self.last_type = None
+        self.last_stars = None
+        self.last_block_id = 0
 
     def p_code(self, p):
         'code : global_statement_list'
@@ -56,22 +64,14 @@ class APLParser(object):
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
 
-        self.global_symtable = create_symtable('global', None, p[1])
+        # self.global_symtable = create_symtable('global', None, p[1])
         # print(self.global_symtable)
-        print_symbol_tables()
-
+        # print_symbol_tables()
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
                                  | empty'''
-        if p[1] is not None:
-            # if isinstance(p[1], Decl):
-            #     # ignore declaration statements
-            #     p[0] = p[2]
-            # else:
-            p[0] = [p[1]] + p[2]
-        else:
-            p[0] = []
+        p[0] = [p[1]] + p[2] if p[1] is not None else []
 
     def p_global_statement(self, p):
         '''global_statement : declaration SEMICOLON
@@ -82,27 +82,22 @@ class APLParser(object):
 
     def p_main_function_def(self, p):
         '''main_function_def : VOID MAIN LPAREN RPAREN block'''
-        p[0] = Function(Type(p[1], 0), p[2], [], p[5].asts)
+        p[0] = Function((p[1], 0), p[2], [], p[5].asts)
+        # print(p[6])
 
     def p_function_def(self, p):
-        '''function_def : type ID LPAREN formal_param_list RPAREN block
-                        | type stars ID LPAREN formal_param_list RPAREN block'''
-        if len(p) == 7:
-            p[0] = Function(Type(p[1], 0), p[2], p[4], p[6].asts)
-            # self.curr_symtable = self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=False)
-        elif len(p) == 8:
-            p[0] = Function(Type(p[1], len(p[2])), p[3], p[5], p[7].asts)
-            # self.curr_symtable = self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
+        '''function_def : type stars id LPAREN M formal_param_list RPAREN LBRACKET statement_list RBRACKET'''
+        p[0] = Function((p[1], len(p[2])), p[3].token.value, p[6], p[9])
+        print('function : ', p[3].token.value)
+
+    def p_M(self, p):
+        '''M : empty'''
+        p[0] = ''
+        print((self.last_type, self.last_stars), self.last_id, 'creating function symtable')
 
     def p_function_proto(self, p):
-        '''function_proto : type ID LPAREN formal_param_list RPAREN SEMICOLON
-                          | type stars ID LPAREN formal_param_list RPAREN SEMICOLON'''
-        if len(p) == 7:
-            p[0] = Function(Type(p[1], 0), p[2], p[4], None)
-            # self.curr_symtable.add_function(p[2], Type(p[1], 0), p[4], is_proto=True)
-        elif len(p) == 8:
-            p[0] = Function(Type(p[1], len(p[2])), p[3], p[5], None)
-            # self.curr_symtable.add_function(p[3], Type(p[1], len(p[2])), p[5], is_proto=True)
+        '''function_proto : type stars id LPAREN M formal_param_list RPAREN SEMICOLON'''
+        p[0] = Function((p[1], len(p[2])), p[3].token.value, p[6], None)
 
     def p_formal_param_list(self, p):
         '''formal_param_list : formal_param COMMA formal_param_list
@@ -117,40 +112,39 @@ class APLParser(object):
                 p[0] = []
 
     def p_formal_param(self, p):
-        '''formal_param : type ID
-                        | type stars ID'''
-        if len(p) > 3:
-            p[0] = Param(p[3], p[1], len(p[2]))
-        else:
-            p[0] = Param(p[2], p[1], 0)
+        '''formal_param : type stars id'''
+        p[0] = Param(p[3].token.value, p[1], len(p[2]))
 
     def p_type(self, p):
         '''type : INT
                 | FLOAT'''
         p[0] = p[1]
+        self.last_type = p[1]
 
     def p_stars(self, p):
         '''stars : STAR stars
-                 | STAR'''
-        # one or more STARS
-        if len(p) > 2:
-            p[0] = p[1] + p[2]
-        else:
-            p[0] = p[1]
+                 | empty'''
+        # zero or more STARS
+        p[0] = p[1] + p[2] if len(p) > 2 else ''
+        self.last_stars = p[0]
+
+    def p_N(self, p):
+        '''N : empty'''
+        print(self.last_block_id, 'creating symtable')
+        p[0] = ''
+        self.last_block_id += 1
 
     def p_block(self, p):
-        '''block : LBRACKET statement_list RBRACKET'''
-        p[0] = Block(p[2])
+        '''block : N LBRACKET statement_list RBRACKET'''
+        p[0] = Block(p[3])
+        print('block')
         # self.curr_symtable = self.curr_symtable.parent
 
     def p_statement_list(self, p):
         '''statement_list : statement statement_list
                           | block statement_list
                           | empty'''
-        if p[1] is not None:
-            p[0] = [p[1]] + p[2]
-        else:
-            p[0] = []
+        p[0] = [p[1]] + p[2] if len(p) == 3 else []
 
     def p_statement(self, p):
         '''statement : declaration SEMICOLON
@@ -180,18 +174,21 @@ class APLParser(object):
     def p_if_statement(self, p):
         '''if_statement : IF LPAREN logical_expression RPAREN block_statement %prec IFX'''
         p[0] = If(p[3], p[5], None)
+        print('if')
 
     def p_ifelse_statement(self, p):
         '''if_statement : IF LPAREN logical_expression RPAREN block_statement ELSE block_statement %prec ELSE'''
         p[0] = If(p[3], p[5], p[7])
+        print('ifelse')
 
     def p_while_statement(self, p):
         '''while_statement : WHILE LPAREN logical_expression RPAREN block_statement'''
         p[0] = While(p[3], p[5])
+        print('while')
 
     def p_function_call(self, p):
-        '''function_call : ID LPAREN expr_list RPAREN'''
-        p[0] = FunctionCall(p[1], p[3])
+        '''function_call : id LPAREN expr_list RPAREN'''
+        p[0] = FunctionCall(p[1].token.value, p[3])
 
     def p_expr_list(self, p):
         '''expr_list : expression COMMA expr_list
@@ -314,29 +311,20 @@ class APLParser(object):
     def p_id(self, p):
         '''id : ID'''
         p[0] = Var(p[1])
+        self.last_id = p[1]
 
     def p_int(self, p):
         '''int : INTEGER
                | REAL'''
-        print(p[1])
         p[0] = Const(p[1])
 
-    # list:-------
-    def p_list_id(self, p):
-        '''list : ID COMMA list
-                | ID'''
-        if len(p) > 2:
-            p[0] = [(p[1], 0)] + p[3]
-        else:
-            p[0] = [(p[1], 0)]
-
     def p_list_pointer(self, p):
-        '''list : stars ID COMMA list
-                | stars ID'''
+        '''list : stars id COMMA list
+                | stars id'''
         if len(p) > 3:
-            p[0] = [(p[2], len(p[1]))] + p[4]
+            p[0] = [(p[2].token.value, len(p[1]))] + p[4]
         else:
-            p[0] = [(p[2], len(p[1]))]
+            p[0] = [(p[2].token.value, len(p[1]))]
 
     # def p_pointer(self, p):
     #     '''pointer : stars ID'''
