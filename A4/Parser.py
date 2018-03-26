@@ -5,7 +5,7 @@ from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, DeclList, If, While, Function, Param, Block,\
     FunctionCall, ReturnStmt
 from cfg import CFG
-from symtablev2 import mktable, Stack
+from symtablev2 import mktable, Stack, get_width
 import sys
 import os
 
@@ -43,13 +43,19 @@ class APLParser(object):
         self.nest_level = 1
 
         self.offset.push(0)
-        print('creating symtable')
-        self.tableptr.push(mktable(None))
+        self.tableptr.push(mktable(None, 'global'))
 
         self.last_id = None
         self.last_type = None
         self.last_stars = None
-        self.last_block_id = 0
+        self.block_id = 0
+
+    def pop_tableptr(self):
+        curr_symt = self.tableptr.top()
+        curr_symt.addwidth(self.offset.top())
+        self.tableptr.pop()
+        self.offset.pop()
+        self.nest_level -= 1
 
     def p_code(self, p):
         'code : global_statement_list'
@@ -68,6 +74,8 @@ class APLParser(object):
         # print(self.global_symtable)
         # print_symbol_tables()
 
+        print(self.tableptr.top())
+
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
                                  | empty'''
@@ -81,23 +89,98 @@ class APLParser(object):
         p[0] = p[1]
 
     def p_main_function_def(self, p):
-        '''main_function_def : VOID MAIN LPAREN RPAREN block'''
-        p[0] = Function((p[1], 0), p[2], [], p[5].asts)
+        '''main_function_def : void main LPAREN M RPAREN LBRACKET statement_list RBRACKET'''
+        p[0] = Function((p[1], 0), p[2], [], p[7])
+        print('function : ', 'main')
         # print(p[6])
+        self.pop_tableptr()
 
     def p_function_def(self, p):
-        '''function_def : type stars id LPAREN M formal_param_list RPAREN LBRACKET statement_list RBRACKET'''
-        p[0] = Function((p[1], len(p[2])), p[3].token.value, p[6], p[9])
-        print('function : ', p[3].token.value)
+        '''function_def : type stars id LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
+        p[0] = Function((p[1], len(p[2])), p[3].value, p[6], p[9])
+        print('function : ', p[3].value)
+        self.pop_tableptr()
+
+    def p_function_proto(self, p):
+        '''function_proto : type stars id LPAREN M formal_params RPAREN SEMICOLON'''
+        p[0] = Function((p[1], len(p[2])), p[3].value, p[6], None)
+        print('function proto : ', p[3].value)
+        self.pop_tableptr()
+
+    def p_void_function_def(self, p):
+        '''function_def : void id LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
+        p[0] = Function((p[1], 0), p[2].value, p[5], p[8])
+        print('function : ', p[2].value)
+        self.pop_tableptr()
+
+    def p_void_function_proto(self, p):
+        '''function_def : void id LPAREN M formal_params RPAREN SEMICOLON'''
+        p[0] = Function((p[1], 0), p[2].value, p[5], None)
+        print('function proto : ', p[2].value)
+        self.pop_tableptr()
 
     def p_M(self, p):
         '''M : empty'''
         p[0] = ''
+
         print((self.last_type, self.last_stars), self.last_id, 'creating function symtable')
 
-    def p_function_proto(self, p):
-        '''function_proto : type stars id LPAREN M formal_param_list RPAREN SEMICOLON'''
-        p[0] = Function((p[1], len(p[2])), p[3].token.value, p[6], None)
+        curr_symt = self.tableptr.top()
+        func_name = self.last_id
+        ret_type = (self.last_type, len(self.last_stars))
+
+        # check if already exists
+        if func_name in curr_symt.symbols:
+            print('prototype for function %s exists.' % (func_name))
+            entry = curr_symt.symbols[func_name]
+            if ret_type != entry['ret_type']:
+                print('[function %s] return type mismatch with prototype.' % (func_name))
+                sys.exit(0)
+
+            table = entry['tableptr']
+            self.tableptr.push(table)
+            self.offset.push(0)
+        else:
+            new_table = mktable(curr_symt, func_name)
+            new_table.num_params = 0
+            curr_symt.enterfunc(func_name, new_table, ret_type)
+            self.tableptr.push(new_table)
+            self.offset.push(0)
+
+        self.nest_level += 1
+
+    def p_formal_params(self, p):
+        '''formal_params : formal_param_list'''
+        p[0] = p[1]
+        # populate function symtable paramaters
+        # type check prototype parameters
+
+        curr_symt = self.tableptr.top()
+        temp_param_len = curr_symt.num_params
+        if temp_param_len > 0:
+            if temp_param_len != len(p[1]):
+                print('parameter mismatch with prototype')
+                sys.exit(0)
+
+            index = 0
+            for k, v in curr_symt.symbols.items():
+                param = p[1][index]
+                if v['type'] != (param.dtype, param.pointer_level):
+                    print('parameter #%d type mismatch with prototype.' % (index + 1))
+                    sys.exit(0)
+                index += 1
+                if index == temp_param_len:
+                    break
+
+            curr_symt.symbols.clear()
+
+        for param in p[1]:
+            _type = (param.dtype, param.pointer_level)
+            width = get_width(_type)
+            curr_symt.enter(param.id, _type, width)
+            self.offset.updateTop(self.offset.top() + width)
+
+        curr_symt.num_params = len(p[1])
 
     def p_formal_param_list(self, p):
         '''formal_param_list : formal_param COMMA formal_param_list
@@ -113,13 +196,24 @@ class APLParser(object):
 
     def p_formal_param(self, p):
         '''formal_param : type stars id'''
-        p[0] = Param(p[3].token.value, p[1], len(p[2]))
+        p[0] = Param(p[3].value, p[1], len(p[2]))
 
     def p_type(self, p):
         '''type : INT
                 | FLOAT'''
         p[0] = p[1]
         self.last_type = p[1]
+
+    def p_void(self, p):
+        '''void : VOID'''
+        p[0] = p[1]
+        self.last_type = p[1]
+        self.last_stars = ''
+
+    def p_main(self, p):
+        '''main : MAIN'''
+        p[0] = p[1]
+        self.last_id = p[0]
 
     def p_stars(self, p):
         '''stars : STAR stars
@@ -130,14 +224,24 @@ class APLParser(object):
 
     def p_N(self, p):
         '''N : empty'''
-        print(self.last_block_id, 'creating symtable')
+        print(self.block_id, 'creating symtable')
         p[0] = ''
-        self.last_block_id += 1
+
+        curr_symt = self.tableptr.top()
+        block_name = '@block_' + str(self.block_id)
+        new_table = mktable(curr_symt, block_name)
+        new_table.num_params = 0
+        curr_symt.enterblock(block_name, new_table)
+        self.tableptr.push(new_table)
+        self.offset.push(0)
+
+        self.nest_level += 1
+        self.block_id += 1
 
     def p_block(self, p):
         '''block : N LBRACKET statement_list RBRACKET'''
         p[0] = Block(p[3])
-        print('block')
+        self.pop_tableptr()
         # self.curr_symtable = self.curr_symtable.parent
 
     def p_statement_list(self, p):
@@ -188,7 +292,7 @@ class APLParser(object):
 
     def p_function_call(self, p):
         '''function_call : id LPAREN expr_list RPAREN'''
-        p[0] = FunctionCall(p[1].token.value, p[3])
+        p[0] = FunctionCall(p[1].value, p[3])
 
     def p_expr_list(self, p):
         '''expr_list : expression COMMA expr_list
@@ -202,7 +306,13 @@ class APLParser(object):
     def p_declaration(self, p):
         '''declaration : type list'''
         decl_vars = []
+        curr_symt = self.tableptr.top()
         for v in p[2]:
+            p_level = v[1]
+            width = get_width((p[1], p_level))
+            curr_symt.enter(v[0], (p[1], p_level), width)
+            self.offset.updateTop(self.offset.top() + width)
+
             decl_vars.append(Decl(v[0], p[1], v[1]))
 
         p[0] = DeclList(decl_vars)
@@ -215,7 +325,7 @@ class APLParser(object):
             t = Token('ASGN', '=')
             p[0] = BinOp(p[1], p[3], t)
         else:
-            print('Syntax error at %s =\n' % (p[1].token.value))
+            print('Syntax error at %s =\n' % (p[1].value))
             sys.exit(0)
 
     def p_assignment_deref(self, p):
@@ -322,9 +432,9 @@ class APLParser(object):
         '''list : stars id COMMA list
                 | stars id'''
         if len(p) > 3:
-            p[0] = [(p[2].token.value, len(p[1]))] + p[4]
+            p[0] = [(p[2].value, len(p[1]))] + p[4]
         else:
-            p[0] = [(p[2].token.value, len(p[1]))]
+            p[0] = [(p[2].value, len(p[1]))]
 
     # def p_pointer(self, p):
     #     '''pointer : stars ID'''

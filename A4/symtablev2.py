@@ -10,12 +10,16 @@ TYPE_SIZES = {
 
 class SymbolTable(object):
 
-    def __init__(self, parent):
+    def __init__(self, parent, name):
         self.parent = parent
         self.size = 0
         self.symbols = OrderedDict()
+        self.name = name
 
-    def enter(self, name, _type, width, offset):
+        # applicable for function symbol tables
+        self.num_params = None
+
+    def enter(self, name, _type, width):
         '''
         Args:
             name (str): id
@@ -30,10 +34,9 @@ class SymbolTable(object):
         self.symbols[name] = {
             'type': _type,
             'width': width,
-            'offset': offset,
         }
 
-    def enterproc(self, name, new_table, ret_type, params):
+    def enterfunc(self, name, new_table, ret_type):
         if name in self.symbols:
             entry = self.symbols[name]
             if entry['tableptr'] is not None:
@@ -46,28 +49,52 @@ class SymbolTable(object):
                     print('[function %s] return type mismatch with prototype.' % (name))
                     return
 
-                if len(entry['params']) != len(params):
-                    print('[function %s] parameter list mismatch with prototype.' % (name))
-                    return
+                # if len(entry['params']) != len(params):
+                #     print('[function %s] parameter list mismatch with prototype.' % (name))
+                #     return
 
-                for index, (p1, p2) in enumerate(zip(entry['params'], params)):
-                    if p1[1] != p2[1]:
-                        print('[function %s] param #%d type mismatch with prototype.' % (name, index))
-                        return
+                # for index, (p1, p2) in enumerate(zip(entry['params'], params)):
+                #     if p1[1] != p2[1]:
+                #         print('[function %s] param #%d type mismatch with prototype.' % (name, index))
+                #         return
 
         self.symbols[name] = {
             'ret_type': ret_type,
-            'params': params,
+            'tableptr': new_table,
+        }
+
+    def enterblock(self, name, new_table):
+        self.symbols[name] = {
             'tableptr': new_table,
         }
 
     def addwidth(self, width):
         self.size = width
 
+    def __repr__(self):
+        return self.as_string(0)
 
-def mktable(curr_symtable):
-    st = SymbolTable(curr_symtable)
+    def as_string(self, depth=0):
+        tab = '\t' * depth
+        parent_name = self.parent.name if self.parent is not None else 'none'
+        temp = '\n' + tab + 'table: ' + self.name + '\n' + tab + 'parent: ' + parent_name + '\n' + tab + '---\n'
+        for k, v in self.symbols.items():
+            temp += tab + str(k) + '\n'
+            if 'tableptr' in v.keys():
+                temp += v['tableptr'].as_string(depth + 1)
+        return temp
+
+
+def mktable(curr_symtable, name):
+    st = SymbolTable(curr_symtable, name)
     return st
+
+
+def get_width(_type):
+    '''type <- tuple (<basetype>, <pointer_level>)'''
+    p_level = _type[1]
+    width = TYPE_SIZES[_type[0]] if p_level == 0 else TYPE_SIZES['pointer']
+    return width
 
 
 class Stack:

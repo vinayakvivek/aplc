@@ -92,12 +92,13 @@ class Var(AST):
 
     def __init__(self, value):
         AST.__init__(self, Token('VAR', value))
+        self.value = value
 
     def __repr__(self):
         return self.as_string(0)
 
     def as_string(self, depth=0):
-        name = self.token.value
+        name = self.value
         return '\t'*depth + 'VAR(%s)\n' % (name)
 
     def as_line(self):
