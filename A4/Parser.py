@@ -317,6 +317,14 @@ class APLParser(object):
 
         p[0] = DeclList(decl_vars)
 
+    def p_list_pointer(self, p):
+        '''list : stars id COMMA list
+                | stars id'''
+        if len(p) > 3:
+            p[0] = [(p[2].value, len(p[1]))] + p[4]
+        else:
+            p[0] = [(p[2].value, len(p[1]))]
+
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
 
@@ -427,18 +435,6 @@ class APLParser(object):
         '''int : INTEGER
                | REAL'''
         p[0] = Const(p[1])
-
-    def p_list_pointer(self, p):
-        '''list : stars id COMMA list
-                | stars id'''
-        if len(p) > 3:
-            p[0] = [(p[2].value, len(p[1]))] + p[4]
-        else:
-            p[0] = [(p[2].value, len(p[1]))]
-
-    # def p_pointer(self, p):
-    #     '''pointer : stars ID'''
-    #     p[0] = ''.join(p[1:])
 
     def p_empty(self, p):
         'empty :'

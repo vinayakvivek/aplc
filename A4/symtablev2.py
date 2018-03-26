@@ -49,22 +49,15 @@ class SymbolTable(object):
                     print('[function %s] return type mismatch with prototype.' % (name))
                     return
 
-                # if len(entry['params']) != len(params):
-                #     print('[function %s] parameter list mismatch with prototype.' % (name))
-                #     return
-
-                # for index, (p1, p2) in enumerate(zip(entry['params'], params)):
-                #     if p1[1] != p2[1]:
-                #         print('[function %s] param #%d type mismatch with prototype.' % (name, index))
-                #         return
-
         self.symbols[name] = {
+            'type': 'function',
             'ret_type': ret_type,
             'tableptr': new_table,
         }
 
     def enterblock(self, name, new_table):
         self.symbols[name] = {
+            'type': 'block',
             'tableptr': new_table,
         }
 
