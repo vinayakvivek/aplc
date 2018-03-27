@@ -17,6 +17,13 @@ logging.basicConfig(
 log = logging.getLogger()
 
 
+def check_direct_access(p):
+    if isinstance(p, Var):
+        if p.entry['type'] != 'function' and p.entry['type'][1] == 0:
+            print('[error] direct access of non-pointer %s.' % (p.value))
+            sys.exit(0)
+
+
 class APLParser(object):
     tokens = APLLexer.tokens
     precedence = (
@@ -70,7 +77,7 @@ class APLParser(object):
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
 
-        print(self.tableptr.top())
+        # print(self.tableptr.top())
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
@@ -352,21 +359,36 @@ class APLParser(object):
         p[0] = Var(p[1])
         self.last_id = p[1]
 
-    def p_assignment_id(self, p):
-        '''assignment : id EQUALS expression'''
-
-        # check if expression has only const leaves
-        if not p[3].const_leaves:
-            t = Token('ASGN', '=')
-            p[0] = BinOp(p[1], p[3], t)
-        else:
-            print('Syntax error at %s =\n' % (p[1].value))
-            sys.exit(0)
-
     def p_assignment_deref(self, p):
-        '''assignment : deref EQUALS expression'''
+        '''assignment : lhs EQUALS expression'''
         t = Token('ASGN', '=')
         p[0] = BinOp(p[1], p[3], t)
+
+        check_direct_access(p[1])
+        check_direct_access(p[3])
+
+        if p[1].dtype != p[3].dtype:
+            print('invalid assignment.')
+            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
+            sys.exit(0)
+
+        p[0].dtype = p[1].dtype
+
+    def p_assignment_lhs(self, p):
+        '''lhs : STAR lhs'''
+        t = Token('DEREF', p[1])
+        p[0] = UnaryOp(p[2], t)
+
+        dtype = p[2].dtype
+        if dtype[1] <= 0:
+            print('invalid usage of pointer.')
+            sys.exit(0)
+
+        p[0].dtype = (dtype[0], dtype[1]-1)
+
+    def p_assignment_lhs_id(self, p):
+        '''lhs : id'''
+        p[0] = p[1]
 
     def p_expression_binop(self, p):
         '''expression : expression PLUS expression
@@ -384,6 +406,9 @@ class APLParser(object):
             t = Token('DIV', '/')
 
         p[0] = BinOp(p[1], p[3], t)
+
+        check_direct_access(p[1])
+        check_direct_access(p[3])
 
         if p[1].dtype != p[3].dtype or\
            p[1].dtype[1] != 0 or\
@@ -423,6 +448,9 @@ class APLParser(object):
 
         p[0] = BinOp(p[1], p[3], t)
 
+        check_direct_access(p[1])
+        check_direct_access(p[3])
+
         if p[1].dtype != p[3].dtype or\
            p[1].dtype[1] != 0 or\
            p[1].dtype[0] == 'void':
@@ -431,7 +459,6 @@ class APLParser(object):
             sys.exit(0)
 
         p[0].dtype = ('bool', 0)
-
 
     def p_logical_expression_not(self, p):
         '''logical_expression : BOOL_NOT logical_expression'''
@@ -449,6 +476,8 @@ class APLParser(object):
         t = Token('UMINUS', '-')
         p[0] = UnaryOp(p[2], t)
 
+        check_direct_access(p[2])
+
         dtype = p[2].dtype
         if dtype[0] == 'void' or dtype[1] != 0:
             print('invalid use of operator unary minus on expression of type: ', dtype)
@@ -464,35 +493,16 @@ class APLParser(object):
     def p_expression_single(self, p):
         '''expression : number
                       | id
-                      | deref_addr
+                      | addr
                       | function_call'''
         p[0] = p[1]
 
-    # def p_exression_deref(self, p):
-    #     '''expression : STAR expression'''
-    #     t = Token('DEREF', p[1])
-    #     p[0] = UnaryOp(p[2], t)
-
-    #     # dtype = p[2].dtype
-
-
-    def p_deref_addr(self, p):
-        '''deref_addr : deref
-                      | addr'''
-        p[0] = p[1]
-
-    def p_deref(self, p):
-        '''deref : STAR deref_addr
-                 | STAR id'''
+    def p_exression_deref(self, p):
+        '''expression : STAR expression'''
         t = Token('DEREF', p[1])
         p[0] = UnaryOp(p[2], t)
 
-        dtype = None
-        if isinstance(p[2], Var):
-            dtype = p[2].entry['type']
-        else:
-            dtype = p[2].dtype
-
+        dtype = p[2].dtype
         if dtype[1] <= 0:
             print('invalid usage of pointer.')
             sys.exit(0)
