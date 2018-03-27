@@ -20,6 +20,7 @@ class BinOp(AST):
         self.right_child = right_child
         self.op = token.type
         self.const_leaves = left_child.const_leaves and right_child.const_leaves
+        self.dtype = None
 
     def __repr__(self):
         return self.as_string(0)
@@ -41,6 +42,7 @@ class UnaryOp(AST):
         self.child = child
         self.op = token.type
         self.const_leaves = child.const_leaves
+        self.dtype = None
 
     def __repr__(self):
         return self.as_string(0)
@@ -93,6 +95,9 @@ class Var(AST):
         AST.__init__(self, Token('VAR', value))
         self.value = value
         self.entry = symt_entry
+        self.dtype = None
+        if symt_entry is not None:
+            self.dtype = symt_entry['type']
 
     def __repr__(self):
         return self.as_string(0)

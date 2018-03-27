@@ -359,6 +359,15 @@ class APLParser(object):
 
         p[0] = BinOp(p[1], p[3], t)
 
+        if p[1].dtype != p[3].dtype or\
+           p[1].dtype[1] != 0 or\
+           p[1].dtype[0] == 'void':
+            print('invalid usage of operator %s' % (p[2]))
+            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
+            sys.exit(0)
+
+        p[0].dtype = p[1].dtype
+
     def p_logical_expression_binop(self, p):
         '''logical_expression : expression LT expression
                               | expression LE expression
@@ -388,15 +397,38 @@ class APLParser(object):
 
         p[0] = BinOp(p[1], p[3], t)
 
+        if p[1].dtype != p[3].dtype or\
+           p[1].dtype[1] != 0 or\
+           p[1].dtype[0] == 'void':
+            print('invalid usage of operator %s' % (p[2]))
+            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
+            sys.exit(0)
+
+        p[0].dtype = ('bool', 0)
+
+
     def p_logical_expression_not(self, p):
         '''logical_expression : BOOL_NOT logical_expression'''
         t = Token('NOT', '!')
         p[0] = UnaryOp(p[2], t)
 
+        if p[2].dtype != ('bool', 0):
+            print('invalid usage of operator logical NOT.')
+            sys.exit(0)
+
+        p[0].dtype = ('bool', 0)
+
     def p_expression_uminus(self, p):
         '''expression : MINUS expression %prec UMINUS'''
         t = Token('UMINUS', '-')
         p[0] = UnaryOp(p[2], t)
+
+        dtype = p[2].dtype
+        if dtype[0] == 'void' or dtype[1] != 0:
+            print('invalid use of operator unary minus on expression of type: ', dtype)
+            sys.exit(0)
+
+        p[0].dtype = dtype
 
     def p_expression_paren(self, p):
         '''expression : LPAREN expression RPAREN
@@ -421,11 +453,30 @@ class APLParser(object):
         t = Token('DEREF', p[1])
         p[0] = UnaryOp(p[2], t)
 
+        dtype = None
+        if isinstance(p[2], Var):
+            dtype = p[2].entry['type']
+        else:
+            dtype = p[2].dtype
+
+        if dtype[1] <= 0:
+            print('invalid usage of pointer.')
+            sys.exit(0)
+
+        p[0].dtype = (dtype[0], dtype[1]-1)
+
     def p_addr(self, p):
-        '''addr : AND deref_addr
-                | AND id'''
+        '''addr : AND id'''
+
+        if p[2].entry['type'] == 'function':
+            print('invalid usage of function %s.' % (p[2].value))
+            sys.exit(0)
+
         t = Token('ADDR', p[1])
         p[0] = UnaryOp(p[2], t)
+
+        dtype = p[2].entry['type']
+        p[0].dtype = (dtype[0], dtype[1]+1)
 
     def p_id(self, p):
         '''id : ID'''
