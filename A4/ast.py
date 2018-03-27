@@ -12,7 +12,6 @@ class AST(object):
         self.token = token
         self.const_leaves = const_leaves
 
-
 class BinOp(AST):
 
     def __init__(self, left_child, right_child, token):
@@ -90,9 +89,10 @@ class DeclList(AST):
 
 class Var(AST):
 
-    def __init__(self, value):
+    def __init__(self, value, symt_entry=None):
         AST.__init__(self, Token('VAR', value))
         self.value = value
+        self.entry = symt_entry
 
     def __repr__(self):
         return self.as_string(0)
@@ -107,8 +107,9 @@ class Var(AST):
 
 class Const(AST):
 
-    def __init__(self, value):
+    def __init__(self, value, dtype=None):
         AST.__init__(self, Token('CONST', value), True)
+        self.dtype = dtype
 
     def __repr__(self):
         return self.as_string(0)

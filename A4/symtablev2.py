@@ -77,6 +77,15 @@ class SymbolTable(object):
                 temp += v['tableptr'].as_string(depth + 1)
         return temp
 
+    def look_up(self, name):
+        if name in self.symbols:
+            return self.symbols[name]
+
+        if self.parent is not None:
+            return self.parent.look_up(name)
+
+        return None
+
 
 def mktable(curr_symtable, name):
     st = SymbolTable(curr_symtable, name)

@@ -70,10 +70,6 @@ class APLParser(object):
         self.cfg_file.write(str(cfg))
         self.cfg_file.close()
 
-        # self.global_symtable = create_symtable('global', None, p[1])
-        # print(self.global_symtable)
-        # print_symbol_tables()
-
         print(self.tableptr.top())
 
     def p_global_statement_list(self, p):
@@ -96,25 +92,25 @@ class APLParser(object):
         self.pop_tableptr()
 
     def p_function_def(self, p):
-        '''function_def : type stars id LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
+        '''function_def : type stars id_d LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
         p[0] = Function((p[1], len(p[2])), p[3].value, p[6], p[9])
         print('function : ', p[3].value)
         self.pop_tableptr()
 
     def p_function_proto(self, p):
-        '''function_proto : type stars id LPAREN M formal_params RPAREN SEMICOLON'''
+        '''function_proto : type stars id_d LPAREN M formal_params RPAREN SEMICOLON'''
         p[0] = Function((p[1], len(p[2])), p[3].value, p[6], None)
         print('function proto : ', p[3].value)
         self.pop_tableptr()
 
     def p_void_function_def(self, p):
-        '''function_def : void id LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
+        '''function_def : void id_d LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
         p[0] = Function((p[1], 0), p[2].value, p[5], p[8])
         print('function : ', p[2].value)
         self.pop_tableptr()
 
     def p_void_function_proto(self, p):
-        '''function_def : void id LPAREN M formal_params RPAREN SEMICOLON'''
+        '''function_def : void id_d LPAREN M formal_params RPAREN SEMICOLON'''
         p[0] = Function((p[1], 0), p[2].value, p[5], None)
         print('function proto : ', p[2].value)
         self.pop_tableptr()
@@ -195,7 +191,7 @@ class APLParser(object):
                 p[0] = []
 
     def p_formal_param(self, p):
-        '''formal_param : type stars id'''
+        '''formal_param : type stars id_d'''
         p[0] = Param(p[3].value, p[1], len(p[2]))
 
     def p_type(self, p):
@@ -318,12 +314,17 @@ class APLParser(object):
         p[0] = DeclList(decl_vars)
 
     def p_list_pointer(self, p):
-        '''list : stars id COMMA list
-                | stars id'''
+        '''list : stars id_d COMMA list
+                | stars id_d'''
         if len(p) > 3:
             p[0] = [(p[2].value, len(p[1]))] + p[4]
         else:
             p[0] = [(p[2].value, len(p[1]))]
+
+    def p_id_nonuse(self, p):
+        '''id_d : ID'''
+        p[0] = Var(p[1])
+        self.last_id = p[1]
 
     def p_assignment_id(self, p):
         '''assignment : id EQUALS expression'''
@@ -403,7 +404,7 @@ class APLParser(object):
         p[0] = p[2]
 
     def p_expression_single(self, p):
-        '''expression : int
+        '''expression : number
                       | id
                       | deref_addr
                       | function_call'''
@@ -428,13 +429,20 @@ class APLParser(object):
 
     def p_id(self, p):
         '''id : ID'''
-        p[0] = Var(p[1])
-        self.last_id = p[1]
+        curr_symt = self.tableptr.top()
+        entry = curr_symt.look_up(p[1])
+        if entry is None:
+            print('undefined identifier %s.' % (p[1]))
+            sys.exit(0)
+        p[0] = Var(p[1], entry)
 
-    def p_int(self, p):
-        '''int : INTEGER
-               | REAL'''
-        p[0] = Const(p[1])
+    def p_number_int(self, p):
+        '''number : INTEGER'''
+        p[0] = Const(p[1], ('int', 0))
+
+    def p_number_real(self, p):
+        '''number : REAL'''
+        p[0] = Const(p[1], ('float', 0))
 
     def p_empty(self, p):
         'empty :'
