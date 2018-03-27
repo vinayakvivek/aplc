@@ -72,7 +72,6 @@ class APLLexer(object):
     def t_REAL(self, t):
         r'([0-9]+[.][0-9]*|[.][0-9]+)'
         try:
-            print(t.value)
             t.value = float(t.value)
         except ValueError:
             print("float value too large %d", t.value)

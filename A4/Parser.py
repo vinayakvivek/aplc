@@ -24,6 +24,14 @@ def check_direct_access(p):
             sys.exit(0)
 
 
+def print_op_error(op, lhs, rhs):
+    _lhs = lhs[0] + '*' * lhs[1]
+    _rhs = rhs[0] + '*' * rhs[1]
+    print('invalid usage of operator %s' % (op))
+    print('LHS is of type: ', _lhs, ', RHS is of type: ', _rhs)
+    sys.exit(0)
+
+
 class APLParser(object):
     tokens = APLLexer.tokens
     precedence = (
@@ -94,39 +102,31 @@ class APLParser(object):
     def p_main_function_def(self, p):
         '''main_function_def : void main LPAREN M RPAREN LBRACKET statement_list RBRACKET'''
         p[0] = Function((p[1], 0), p[2], [], p[7])
-        print('function : ', 'main')
-        # print(p[6])
         self.pop_tableptr()
 
     def p_function_def(self, p):
         '''function_def : type stars id_d LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
         p[0] = Function((p[1], len(p[2])), p[3].value, p[6], p[9])
-        print('function : ', p[3].value)
         self.pop_tableptr()
 
     def p_function_proto(self, p):
         '''function_proto : type stars id_d LPAREN M formal_params RPAREN SEMICOLON'''
         p[0] = Function((p[1], len(p[2])), p[3].value, p[6], None)
-        print('function proto : ', p[3].value)
         self.pop_tableptr()
 
     def p_void_function_def(self, p):
         '''function_def : void id_d LPAREN M formal_params RPAREN LBRACKET statement_list RBRACKET'''
         p[0] = Function((p[1], 0), p[2].value, p[5], p[8])
-        print('function : ', p[2].value)
         self.pop_tableptr()
 
     def p_void_function_proto(self, p):
         '''function_def : void id_d LPAREN M formal_params RPAREN SEMICOLON'''
         p[0] = Function((p[1], 0), p[2].value, p[5], None)
-        print('function proto : ', p[2].value)
         self.pop_tableptr()
 
     def p_M(self, p):
         '''M : empty'''
         p[0] = ''
-
-        print((self.last_type, self.last_stars), self.last_id, 'creating function symtable')
 
         curr_symt = self.tableptr.top()
         func_name = self.last_id
@@ -134,7 +134,7 @@ class APLParser(object):
 
         # check if already exists
         if func_name in curr_symt.symbols:
-            print('prototype for function %s exists.' % (func_name))
+            # print('prototype for function %s exists.' % (func_name))
             entry = curr_symt.symbols[func_name]
             if ret_type != entry['ret_type']:
                 print('[function %s] return type mismatch with prototype.' % (func_name))
@@ -155,6 +155,7 @@ class APLParser(object):
     def p_formal_params(self, p):
         '''formal_params : formal_param_list'''
         p[0] = p[1]
+
         # populate function symtable paramaters
         # type check prototype parameters
 
@@ -227,7 +228,6 @@ class APLParser(object):
 
     def p_N(self, p):
         '''N : empty'''
-        print(self.block_id, 'creating symtable')
         p[0] = ''
 
         curr_symt = self.tableptr.top()
@@ -245,7 +245,6 @@ class APLParser(object):
         '''block : N LBRACKET statement_list RBRACKET'''
         p[0] = Block(p[3])
         self.pop_tableptr()
-        # self.curr_symtable = self.curr_symtable.parent
 
     def p_statement_list(self, p):
         '''statement_list : statement statement_list
@@ -265,10 +264,21 @@ class APLParser(object):
     def p_return_statement(self, p):
         '''return_statement : RETURN expression
                             | RETURN'''
+
+        f_symtable = self.tableptr.items[1]
+        f_name = f_symtable.name
+        ret_type = self.tableptr.items[0].symbols[f_name]['ret_type']
+
         if len(p) > 2:
             p[0] = ReturnStmt(p[2])
+            if p[2].dtype != ret_type:
+                print('invalid return.')
+                print('expected %s, got %s.' % (str(ret_type), str(p[2].dtype)))
         else:
             p[0] = ReturnStmt(None)
+            if ret_type != ('void', 0):
+                print('invalid return.')
+                print('expected %s, got %s.' % (str(ret_type), 'void'))
 
     def p_block_statement(self, p):
         '''block_statement : block
@@ -281,17 +291,14 @@ class APLParser(object):
     def p_if_statement(self, p):
         '''if_statement : IF LPAREN logical_expression RPAREN block_statement %prec IFX'''
         p[0] = If(p[3], p[5], None)
-        print('if')
 
     def p_ifelse_statement(self, p):
         '''if_statement : IF LPAREN logical_expression RPAREN block_statement ELSE block_statement %prec ELSE'''
         p[0] = If(p[3], p[5], p[7])
-        print('ifelse')
 
     def p_while_statement(self, p):
         '''while_statement : WHILE LPAREN logical_expression RPAREN block_statement'''
         p[0] = While(p[3], p[5])
-        print('while')
 
     def p_function_call(self, p):
         '''function_call : id LPAREN expr_list RPAREN'''
@@ -368,9 +375,7 @@ class APLParser(object):
         check_direct_access(p[3])
 
         if p[1].dtype != p[3].dtype:
-            print('invalid assignment.')
-            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
-            sys.exit(0)
+            print_op_error(p[2], p[1].dtype, p[3].dtype)
 
         p[0].dtype = p[1].dtype
 
@@ -413,9 +418,7 @@ class APLParser(object):
         if p[1].dtype != p[3].dtype or\
            p[1].dtype[1] != 0 or\
            p[1].dtype[0] == 'void':
-            print('invalid usage of operator %s' % (p[2]))
-            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
-            sys.exit(0)
+            print_op_error(p[2], p[1].dtype, p[3].dtype)
 
         p[0].dtype = p[1].dtype
 
@@ -454,9 +457,7 @@ class APLParser(object):
         if p[1].dtype != p[3].dtype or\
            p[1].dtype[1] != 0 or\
            p[1].dtype[0] == 'void':
-            print('invalid usage of operator %s' % (p[2]))
-            print('LHS is of type: ', p[1].dtype, ', RHS is of type: ', p[3].dtype)
-            sys.exit(0)
+            print_op_error(p[2], p[1].dtype, p[3].dtype)
 
         p[0].dtype = ('bool', 0)
 
