@@ -168,6 +168,12 @@ class CFG(object):
 
         last_node.goto = cond_node.id
 
+    def create_function_node(self, ast):
+
+        assert isinstance(ast, Function)
+
+
+
     def clean_up(self):
         '''removes blank nodes'''
         for node in self.nodes:

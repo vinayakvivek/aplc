@@ -290,6 +290,32 @@ class APLParser(object):
         '''function_call : id LPAREN expr_list RPAREN'''
         p[0] = FunctionCall(p[1].value, p[3])
 
+        param_list = p[3]
+        f_name = p[1].value
+
+        entry = p[1].entry
+        if entry['type'] != 'function':
+            print('undefined function %s.' % (f_name))
+            sys.exit(0)
+
+        f_symtable = entry['tableptr']
+        if f_symtable.num_params != len(param_list):
+            print('function %s expected %d parameters, got %d.' % (f_name, f_symtable.num_params, len(param_list)))
+            sys.exit(0)
+
+        index = 0
+        for k, v in f_symtable.symbols.items():
+            if index == f_symtable.num_params:
+                break
+
+            if v['type'] != param_list[index].dtype:
+                print('function %s expected %s as param #%d, got %s.' % (f_name, str(v['type']), index + 1, param_list[index].dtype))
+                sys.exit(0)
+
+            index += 1
+
+        p[0].dtype = entry['ret_type']
+
     def p_expr_list(self, p):
         '''expr_list : expression COMMA expr_list
                      | expression
@@ -441,6 +467,14 @@ class APLParser(object):
                       | deref_addr
                       | function_call'''
         p[0] = p[1]
+
+    # def p_exression_deref(self, p):
+    #     '''expression : STAR expression'''
+    #     t = Token('DEREF', p[1])
+    #     p[0] = UnaryOp(p[2], t)
+
+    #     # dtype = p[2].dtype
+
 
     def p_deref_addr(self, p):
         '''deref_addr : deref

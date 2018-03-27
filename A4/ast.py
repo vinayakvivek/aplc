@@ -277,6 +277,7 @@ class FunctionCall(AST):
         AST.__init__(self, Token('FUNC_CALL', _id))
         self.id = _id
         self.actual_params = actual_params
+        self.dtype = None
 
     def __repr__(self):
         return self.as_string(0)
