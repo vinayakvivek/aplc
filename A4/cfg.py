@@ -1,5 +1,5 @@
 from ast import Token, BinOp, UnaryOp, Var,\
-    If, While, Function, ReturnStmt
+    If, While, Function, ReturnStmt, FunctionCall
 
 
 class CFGNode(object):
@@ -33,8 +33,6 @@ class CFGNode(object):
             self.split_expr(ast)
 
     def split_expr(self, expr_ast):
-        if not isinstance(expr_ast, (BinOp, UnaryOp)):
-            return expr_ast
 
         if isinstance(expr_ast, BinOp):
             tl = self.split_expr(expr_ast.left_child)
@@ -59,6 +57,17 @@ class CFGNode(object):
             # else:
             t = self.split_expr(expr_ast.child)
             return UnaryOp(t, expr_ast.token)
+
+        elif isinstance(expr_ast, FunctionCall):
+            t_params = [self.split_expr(x) for x in expr_ast.actual_params]
+
+            temp_var = Var('t' + str(self.temp_count + self.temp_start))
+            self.temp_count += 1
+            self.temp_body.append(BinOp(temp_var, FunctionCall(expr_ast.id, t_params), Token('ASGN', '=')))
+            return temp_var
+
+        else:
+            return expr_ast
 
     def __repr__(self):
         string = ''

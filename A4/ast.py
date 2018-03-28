@@ -10,7 +10,7 @@ class AST(object):
 
     def __init__(self, token, const_leaves=False):
         self.token = token
-        self.const_leaves = const_leaves
+        # self.const_leaves = const_leaves
 
 class BinOp(AST):
 
@@ -19,7 +19,7 @@ class BinOp(AST):
         self.left_child = left_child
         self.right_child = right_child
         self.op = token.type
-        self.const_leaves = left_child.const_leaves and right_child.const_leaves
+        # self.const_leaves = left_child.const_leaves and right_child.const_leaves
         self.dtype = None
 
     def __repr__(self):
@@ -41,7 +41,7 @@ class UnaryOp(AST):
         AST.__init__(self, token)
         self.child = child
         self.op = token.type
-        self.const_leaves = child.const_leaves
+        # self.const_leaves = child.const_leaves
         self.dtype = None
 
     def __repr__(self):
@@ -292,6 +292,16 @@ class FunctionCall(AST):
 
         body_string += tab + ')\n'
         return body_string
+
+    def as_line(self):
+        line_string = self.id + '('
+        n = len(self.actual_params)
+        if n > 0:
+            for p in self.actual_params[:-1]:
+                line_string += p.as_line() + ', '
+            line_string += self.actual_params[n - 1].as_line()
+        line_string += ')'
+        return line_string
 
 
 class ReturnStmt(AST):
