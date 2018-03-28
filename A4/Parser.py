@@ -5,7 +5,7 @@ from ast import Token, BinOp, UnaryOp, Var, Const,\
     Decl, DeclList, If, While, Function, Param, Block,\
     FunctionCall, ReturnStmt
 from cfg import CFG
-from symtablev2 import mktable, Stack, get_width
+from symtablev2 import mktable, Stack, get_width, print_procedures, print_variables
 import sys
 import os
 
@@ -86,6 +86,8 @@ class APLParser(object):
         self.cfg_file.close()
 
         # print(self.tableptr.top())
+        print_procedures(self.tableptr.top())
+        print_variables(self.tableptr.top())
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list

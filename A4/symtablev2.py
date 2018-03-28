@@ -99,6 +99,46 @@ def get_width(_type):
     return width
 
 
+def print_procedures(symtable):
+    print('Procedure table :-')
+    print('-----------------------------------------------------------------')
+    print('Name\t\t|\tReturn Type  |  Parameter List')
+
+    for k, v in symtable.symbols.items():
+        if v['type'] == 'function':
+            print(k + '\t\t|\t', end='')
+            ret_type = v['ret_type']
+            print(ret_type[0] + '*'*ret_type[1] + '\t     |\t', end='')
+            table = v['tableptr']
+            num_params = table.num_params
+            params = []
+            for pk, pv in table.symbols.items():
+                if num_params == 0:
+                    break
+                params.append((pk, pv['type'][0] + '*' * pv['type'][1]))
+                num_params -= 1
+            print(params)
+
+
+def print_variables_recursive(symtable, scope):
+    for k, v in symtable.symbols.items():
+        if v['type'] in ('function', 'block'):
+            print_variables_recursive(v['tableptr'], scope + [k])
+        else:
+            print(k + '\t|\t', end='')
+            for s in scope:
+                print(s + '>', end='')
+            print('\t|\t' + v['type'][0] + '*' * v['type'][1])
+
+
+def print_variables(symtable):
+    print('''Variable table :-
+-----------------------------------------------------------------
+Name    |   Scope       |   Base Type  |  Derived Type
+-----------------------------------------------------------------''')
+    print_variables_recursive(symtable, ['global'])
+
+
 class Stack:
     def __init__(self):
         self.items = []
