@@ -9,6 +9,8 @@ class CFGNode(object):
         self.body = body
         self.logical = logical
         self.end = end
+        self.is_return = is_return
+        self.func_name = func_name
 
         if self.logical:
             self.goto_t = None
@@ -25,12 +27,12 @@ class CFGNode(object):
 
         self.parents = []
 
-        self.func_name = func_name
-        self.is_return = is_return
-
     def process_body(self):
         for ast in self.body:
-            self.split_expr(ast)
+            if self.is_return:
+                self.return_id = self.split_expr(ast)
+            else:
+                self.split_expr(ast)
 
     def split_expr(self, expr_ast):
 
@@ -77,16 +79,18 @@ class CFGNode(object):
 
         string += '<bb ' + str(self.id + 1) + '>\n'
 
-        if self.is_return:
-            string += 'return\n'
-            return string
-
         if self.end:
             string += 'End'
             return string
 
         for ast in self.body:
             string += ast.as_line() + '\n'
+
+        if self.is_return:
+            string += 'return'
+            if self.return_id is not None:
+                string += ' ' + self.return_id.value
+            return string + '\n'
 
         if self.logical and self.goto_t and self.goto_f:
             string += 'if(t' + str(self.temp_start + self.temp_count - 1) + ') goto <bb ' + str(self.goto_t + 1) + '>\n'
@@ -150,7 +154,7 @@ class CFG(object):
                     self.create_function_node(ast_list[j])
                     func = None
                 elif isinstance(ast_list[j], ReturnStmt):
-                    node = CFGNode(self.node_count, [], self.temp_count, func_name=func, is_return=True)
+                    node = CFGNode(self.node_count, [ast_list[j].expression], self.temp_count, func_name=func, is_return=True)
                     self.nodes.append(node)
                     self.node_count += 1
                     func = None

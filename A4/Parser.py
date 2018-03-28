@@ -86,8 +86,8 @@ class APLParser(object):
         self.cfg_file.close()
 
         # print(self.tableptr.top())
-        print_procedures(self.tableptr.top())
-        print_variables(self.tableptr.top())
+        # print_procedures(self.tableptr.top())
+        # print_variables(self.tableptr.top())
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
@@ -276,11 +276,13 @@ class APLParser(object):
             if p[2].dtype != ret_type:
                 print('invalid return.')
                 print('expected %s, got %s.' % (str(ret_type), str(p[2].dtype)))
+                sys.exit(0)
         else:
             p[0] = ReturnStmt(None)
             if ret_type != ('void', 0):
                 print('invalid return.')
                 print('expected %s, got %s.' % (str(ret_type), 'void'))
+                sys.exit(0)
 
     def p_block_statement(self, p):
         '''block_statement : block
@@ -368,7 +370,7 @@ class APLParser(object):
         p[0] = Var(p[1])
         self.last_id = p[1]
 
-    def p_assignment_deref(self, p):
+    def p_assignment_lhs(self, p):
         '''assignment : lhs EQUALS expression'''
         t = Token('ASGN', '=')
         p[0] = BinOp(p[1], p[3], t)
@@ -381,7 +383,7 @@ class APLParser(object):
 
         p[0].dtype = p[1].dtype
 
-    def p_assignment_lhs(self, p):
+    def p_lhs(self, p):
         '''lhs : STAR lhs'''
         t = Token('DEREF', p[1])
         p[0] = UnaryOp(p[2], t)
@@ -393,7 +395,7 @@ class APLParser(object):
 
         p[0].dtype = (dtype[0], dtype[1]-1)
 
-    def p_assignment_lhs_id(self, p):
+    def p_lhs_id(self, p):
         '''lhs : id'''
         p[0] = p[1]
 
