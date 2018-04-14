@@ -6,6 +6,7 @@ from ast import Token, BinOp, UnaryOp, Var, Const,\
     FunctionCall, ReturnStmt
 from cfg import CFG
 from symtablev2 import mktable, Stack, get_width, print_procedures, print_variables
+from asm import ASMCodeGenerator
 import sys
 import os
 
@@ -89,6 +90,8 @@ class APLParser(object):
         # print(self.tableptr.top())
         print_procedures(self.tableptr.top(), self.sym_file)
         print_variables(self.tableptr.top(), self.sym_file)
+
+        code_generator = ASMCodeGenerator(cfg, self.tableptr.top())
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list

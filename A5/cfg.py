@@ -32,7 +32,10 @@ class CFGNode(object):
             if self.is_return:
                 self.return_id = self.split_expr(ast)
             else:
-                self.split_expr(ast)
+                if isinstance(ast, FunctionCall):
+                    self.temp_body.append(self.split_expr(ast))
+                else:
+                    self.split_expr(ast)
 
     def split_expr(self, expr_ast):
 
@@ -61,12 +64,16 @@ class CFGNode(object):
             return UnaryOp(t, expr_ast.token)
 
         elif isinstance(expr_ast, FunctionCall):
+
+            print('YOO')
             t_params = [self.split_expr(x) for x in expr_ast.actual_params]
 
-            temp_var = Var('t' + str(self.temp_count + self.temp_start))
-            self.temp_count += 1
-            self.temp_body.append(BinOp(temp_var, FunctionCall(expr_ast.id, t_params), Token('ASGN', '=')))
-            return temp_var
+            # temp_var = Var('t' + str(self.temp_count + self.temp_start))
+            # self.temp_count += 1
+            # self.temp_body.append(BinOp(temp_var, FunctionCall(expr_ast.id, t_params), Token('ASGN', '=')))
+            # return temp_var
+
+            return FunctionCall(expr_ast.id, t_params)
 
         else:
             return expr_ast
@@ -82,7 +89,7 @@ class CFGNode(object):
                 string += str(self.func.params[len(self.func.params) - 1])
             string += ')\n'
 
-        string += '<bb ' + str(self.id + 1) + '>\n'
+        string += '<bb ' + str(self.id) + '>\n'
 
         if self.end:
             string += 'End'
@@ -98,10 +105,10 @@ class CFGNode(object):
             return string + '\n'
 
         if self.logical and self.goto_t and self.goto_f:
-            string += 'if(t' + str(self.temp_start + self.temp_count - 1) + ') goto <bb ' + str(self.goto_t + 1) + '>\n'
-            string += 'else goto <bb ' + str(self.goto_f + 1) + '>\n'
+            string += 'if(t' + str(self.temp_start + self.temp_count - 1) + ') goto <bb ' + str(self.goto_t) + '>\n'
+            string += 'else goto <bb ' + str(self.goto_f) + '>\n'
         elif self.goto:
-            string += 'goto <bb ' + str(self.goto + 1) + '>\n'
+            string += 'goto <bb ' + str(self.goto) + '>\n'
 
         return string
 
@@ -137,7 +144,7 @@ class CFG(object):
 
         while (i < n):
             j = i
-            while j < n and ast_list[j].token.type == 'ASGN':
+            while j < n and (ast_list[j].token.type == 'ASGN' or isinstance(ast_list[j], FunctionCall)):
                 j += 1
 
             if i != j:

@@ -3,8 +3,8 @@ from collections import OrderedDict
 
 TYPE_SIZES = {
     'int': 4,
-    'float': 4,
-    'pointer': 8,
+    'float': 8,
+    'pointer': 4,
 }
 
 
