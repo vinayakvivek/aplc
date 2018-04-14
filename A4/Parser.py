@@ -46,12 +46,13 @@ class APLParser(object):
         ('nonassoc', 'ELSE'),
     )
 
-    def __init__(self, ast_filename, cfg_filename):
+    def __init__(self, ast_filename, cfg_filename, sym_filename):
         self.lexer = APLLexer()
         # self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.parser = yacc.yacc(module=self, debug=True)
         self.ast_file = open(ast_filename, 'w')
         self.cfg_file = open(cfg_filename, 'w')
+        self.sym_file = open(sym_filename, 'w')
 
         self.offset = Stack()
         self.tableptr = Stack()
@@ -86,13 +87,19 @@ class APLParser(object):
         self.cfg_file.close()
 
         # print(self.tableptr.top())
-        # print_procedures(self.tableptr.top())
-        # print_variables(self.tableptr.top())
+        print_procedures(self.tableptr.top(), self.sym_file)
+        print_variables(self.tableptr.top(), self.sym_file)
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
                                  | empty'''
-        p[0] = [p[1]] + p[2] if p[1] is not None else []
+        if len(p) == 3:
+            if isinstance(p[1], DeclList):
+                p[0] = p[2]
+            else:
+                p[0] = [p[1]] + p[2]
+        else:
+            p[0] = []
 
     def p_global_statement(self, p):
         '''global_statement : declaration SEMICOLON
@@ -252,7 +259,13 @@ class APLParser(object):
         '''statement_list : statement statement_list
                           | block statement_list
                           | empty'''
-        p[0] = [p[1]] + p[2] if len(p) == 3 else []
+        if len(p) == 3:
+            if isinstance(p[1], DeclList):
+                p[0] = p[2]
+            else:
+                p[0] = [p[1]] + p[2]
+        else:
+            p[0] = []
 
     def p_statement(self, p):
         '''statement : declaration SEMICOLON
@@ -578,9 +591,10 @@ if __name__ == "__main__":
 
     ast_filename = os.path.join(dirname, basename + '.ast')
     cfg_filename = os.path.join(dirname, basename + '.cfg')
+    sym_filename = os.path.join(dirname, basename + '.sym')
 
     # with open(out_file, 'w') as file:
-    parser = APLParser(ast_filename, cfg_filename)
+    parser = APLParser(ast_filename, cfg_filename, sym_filename)
     parser.parse(data)
 
     print('Successfully Parsed')

@@ -99,16 +99,16 @@ def get_width(_type):
     return width
 
 
-def print_procedures(symtable):
-    print('Procedure table :-')
-    print('-----------------------------------------------------------------')
-    print('Name\t\t|\tReturn Type  |  Parameter List')
+def print_procedures(symtable, file):
+    file.write('Procedure table :-\n')
+    file.write('-----------------------------------------------------------------\n')
+    file.write('Name\t\t|\tReturn Type  |  Parameter List\n')
 
     for k, v in symtable.symbols.items():
         if v['type'] == 'function':
-            print(k + '\t\t|\t', end='')
+            file.write(k + '\t\t|\t')
             ret_type = v['ret_type']
-            print(ret_type[0] + '*'*ret_type[1] + '\t     |\t', end='')
+            file.write(ret_type[0] + '*'*ret_type[1] + '\t     |\t')
             table = v['tableptr']
             num_params = table.num_params
             params = []
@@ -117,26 +117,30 @@ def print_procedures(symtable):
                     break
                 params.append((pk, pv['type'][0] + '*' * pv['type'][1]))
                 num_params -= 1
-            print(params)
+            file.write(str(params) + '\n')
 
 
-def print_variables_recursive(symtable, scope):
+def print_variables_recursive(symtable, scope, file):
     for k, v in symtable.symbols.items():
         if v['type'] in ('function', 'block'):
-            print_variables_recursive(v['tableptr'], scope + [k])
+            print_variables_recursive(v['tableptr'], scope + [k], file)
         else:
-            print(k + '\t|\t', end='')
-            for s in scope:
-                print(s + '>', end='')
-            print('\t|\t' + v['type'][0] + '*' * v['type'][1])
+            file.write(k + '\t\t|\t')
+            if len(scope) > 1:
+                file.write('procedure ' + scope[1] + '\t|\t')
+            else:
+                file.write('global\t\t|\t')
+            file.write(v['type'][0] + '\t   |\t' + '*' * v['type'][1] + '\n')
 
 
-def print_variables(symtable):
-    print('''Variable table :-
+def print_variables(symtable, file):
+    file.write('''Variable table :-
 -----------------------------------------------------------------
 Name    |   Scope       |   Base Type  |  Derived Type
------------------------------------------------------------------''')
-    print_variables_recursive(symtable, ['global'])
+-----------------------------------------------------------------\n''')
+    print_variables_recursive(symtable, ['global'], file)
+    file.write('''-----------------------------------------------------------------
+-----------------------------------------------------------------\n''')
 
 
 class Stack:

@@ -211,22 +211,26 @@ class Function(AST):
         return self.as_string(0)
 
     def as_string(self, depth=0):
-        signature = str(self.name) + '('
+        if not self.has_def:
+            return ''
+
+        signature = 'FUNCTION ' + str(self.name) + '\nPARAMS ('
 
         if len(self.params) > 0:
             for i in range(len(self.params) - 1):
                 signature += str(self.params[i]) + ', '
             signature += str(self.params[len(self.params) - 1])
 
-        signature += ') -> ' + self.ret_type[0] + '*'*self.ret_type[1]
+        signature += ')\nRETURNS ' + '*'*self.ret_type[1] + self.ret_type[0]
+
 
         tab = '\t' * depth
 
-        body_string = tab + signature + '\n' + tab + '(\n'
+        body_string = tab + signature + '\n'
         for stmt in self.body:
             body_string += stmt.as_string(depth + 1)
 
-        return body_string + tab + ')\n'
+        return body_string + '\n'
 
 
 class Param(AST):
@@ -318,12 +322,11 @@ class ReturnStmt(AST):
         return self.as_string(0)
 
     def as_string(self, depth=0):
-        tab = '\t' * depth
-        body_string = tab + 'RETURN\n'
+        # tab = '\t' * depth
+        body_string = 'RETURN\n(\n'
         if self.expression is not None:
-            body_string = tab + '(\n' +\
-                self.expression.as_string(depth + 1) + tab + ')\n'
-        return body_string
+            body_string += self.expression.as_string(depth)
+        return body_string + ')\n'
 
 
 if __name__ == '__main__':

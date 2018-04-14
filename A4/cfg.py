@@ -4,13 +4,13 @@ from ast import Token, BinOp, UnaryOp, Var,\
 
 class CFGNode(object):
 
-    def __init__(self, _id, body, temp_start, logical=False, end=False, func_name=None, is_return=False):
+    def __init__(self, _id, body, temp_start, logical=False, end=False, func=None, is_return=False):
         self.id = _id
         self.body = body
         self.logical = logical
         self.end = end
         self.is_return = is_return
-        self.func_name = func_name
+        self.func = func
 
         if self.logical:
             self.goto_t = None
@@ -74,8 +74,13 @@ class CFGNode(object):
     def __repr__(self):
         string = ''
 
-        if self.func_name is not None:
-            string += 'function ' + self.func_name + '()\n'
+        if self.func is not None:
+            string += 'function ' + self.func.name + '('
+            if len(self.func.params) > 0:
+                for i in range(len(self.func.params) - 1):
+                    string += str(self.func.params[i]) + ', '
+                string += str(self.func.params[len(self.func.params) - 1])
+            string += ')\n'
 
         string += '<bb ' + str(self.id + 1) + '>\n'
 
@@ -89,7 +94,7 @@ class CFGNode(object):
         if self.is_return:
             string += 'return'
             if self.return_id is not None:
-                string += ' ' + self.return_id.value
+                string += ' ' + self.return_id.as_line()
             return string + '\n'
 
         if self.logical and self.goto_t and self.goto_f:
@@ -136,7 +141,7 @@ class CFG(object):
                 j += 1
 
             if i != j:
-                node = CFGNode(self.node_count, list(ast_list[i:j]), self.temp_count, func_name=func)
+                node = CFGNode(self.node_count, list(ast_list[i:j]), self.temp_count, func=func)
                 self.addNode(node)
                 node.goto = self.node_count
                 func = None
@@ -154,7 +159,7 @@ class CFG(object):
                     self.create_function_node(ast_list[j])
                     func = None
                 elif isinstance(ast_list[j], ReturnStmt):
-                    node = CFGNode(self.node_count, [ast_list[j].expression], self.temp_count, func_name=func, is_return=True)
+                    node = CFGNode(self.node_count, [ast_list[j].expression], self.temp_count, func=func, is_return=True)
                     self.nodes.append(node)
                     self.node_count += 1
                     func = None
@@ -171,7 +176,7 @@ class CFG(object):
 
         assert isinstance(ast, If)
 
-        cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, logical=True, func_name=func)
+        cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, logical=True, func=func)
         self.addNode(cond_node)
 
         cond_node.goto_t = self.node_count
@@ -192,7 +197,7 @@ class CFG(object):
 
         assert isinstance(ast, While)
 
-        cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, logical=True, func_name=func)
+        cond_node = CFGNode(self.node_count, [ast.cond], self.temp_count, logical=True, func=func)
         self.addNode(cond_node)
 
         cond_node.goto_t = self.node_count
@@ -212,7 +217,7 @@ class CFG(object):
             # function prototype;
             return
 
-        self.create_nodes(ast.body, func=ast.name)
+        self.create_nodes(ast.body, func=ast)
 
     def clean_up(self):
         '''removes blank nodes'''
