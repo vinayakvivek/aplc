@@ -3,6 +3,13 @@ from ast import BinOp, UnaryOp, FunctionCall, ReturnStmt,\
     Var, Const
 
 
+def code_string(code):
+    temp_string = ''
+    for line in code:
+        temp_string += '\t' + line + '\n'
+    return temp_string
+
+
 class ASMCodeGenerator():
 
     def __init__(self, cfg, symtable):
@@ -193,6 +200,43 @@ class ASMCodeGenerator():
                     self.free_register(reg)
                     return move_reg
 
+            if ast.dtype == ('bool', 0):
+                if ast.op == 'LT':
+                    '''
+                    slt $s2, $s1, $s0
+                    '''
+                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                    reg = self.get_register()
+                    code.append('slt $%s, $%s, $%s' % (reg, reg1, reg2))
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+
+                    move_reg = self.get_register()
+                    code.append('move $%s, $%s' % (move_reg, reg))
+                    self.use_register(move_reg)
+                    self.free_register(reg)
+                    return move_reg
+
+
+    def return_code(self, ast, local_vars, params):
+        code = []
+        reg = self.simple_expression_code(ast, local_vars, params, code)
+
+        if not isinstance(ast, (Var, Const)):
+            move_reg = self.get_register()
+            code.append('move $%s, $%s' % (move_reg, reg))
+            self.use_register(move_reg)
+            self.free_register(reg)
+
+            code.append('move $v1, $%s' % (move_reg) + ' # move return value to $v1')
+            self.free_register(move_reg)
+        else:
+            code.append('move $v1, $%s' % (reg) + ' # move return value to $v1')
+            self.free_register(reg)
+
+        return code_string(code)
 
     def assignment_code(self, ast, local_vars, params):
 
@@ -216,11 +260,23 @@ class ASMCodeGenerator():
 
         self.free_register(rhs_reg)
 
-        code_string = ''
-        for line in code:
-            code_string += '\t' + line + '\n'
+        return code_string(code)
 
-        return code_string
+    def logical_code(self, ast, local_vars, params, goto_t, goto_f):
+        code = []
+
+        '''
+        move $s0, $s2
+        bne $s0, $0, <node.goto_t>
+        j <node.goto_f>
+        '''
+        reg = self.simple_expression_code(ast, local_vars, params, code)
+        code.append('bne $%s, $0, label%d' % (reg, goto_t))
+        code.append('j label%d' % (goto_f))
+
+        self.free_register(reg)
+
+        return code_string(code)
 
     def node_code(self, node, local_vars, params, func_name):
 
@@ -229,21 +285,13 @@ class ASMCodeGenerator():
         if node.is_return:
             # return node
             if node.old_body[0] is not None:
-                expr_code = []
-                expr_reg = self.simple_expression_code(node.old_body[0], local_vars, params, expr_code)
-                move_reg = self.get_register()
-
-                expr_code.append('move $%s, $%s' % (move_reg, expr_reg))
-                self.use_register(move_reg)
-                self.free_register(expr_reg)
-
-                expr_code.append('move $v1, $%s' % (move_reg))
-                self.free_register(move_reg)
-
-                for line in expr_code:
-                    code += '\t' + line + '\n'
+                code += self.return_code(node.old_body[0], local_vars, params)
 
             code += '\tj epilogue_' + func_name + '\n\n'
+            return code
+
+        if node.logical:
+            code += self.logical_code(node.old_body[0], local_vars, params, node.goto_t, node.goto_f)
             return code
 
         for line_ast in node.old_body:
@@ -254,7 +302,7 @@ class ASMCodeGenerator():
             elif isinstance(line_ast, FunctionCall):
                 code += '\t' + line_ast.as_line() + '\n'
 
-        code += '\tj label' + str(node.id + 1) + '\n'
+        code += '\tj label' + str(node.goto) + '\n'
         return code
 
     def func_code(self, cfg_nodes):
