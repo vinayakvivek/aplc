@@ -226,6 +226,8 @@ class CFG(object):
 
         if ast.ret_type[0] == 'void':
             ast.body.append(ReturnStmt(None))
+        elif not isinstance(ast.body[-1], ReturnStmt):
+            ast.body.append(ReturnStmt(None))
 
         self.create_nodes(ast.body, func=ast)
 

@@ -170,6 +170,30 @@ class ASMCodeGenerator():
             elif ast.op == 'NOT':
                 pass
 
+        elif isinstance(ast, BinOp):
+            if ast.dtype == ('int', 0):
+                '''integer operations'''
+                if ast.op == 'PLUS':
+                    '''
+                    add $s1, $<reg1>, $<reg2>
+                    move $s0, $s1
+                    (free reg1, reg2)
+                    '''
+                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                    reg = self.get_register()
+                    code.append('add $%s, $%s, $%s' % (reg, reg1, reg2))
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+
+                    move_reg = self.get_register()
+                    code.append('move $%s, $%s' % (move_reg, reg))
+                    self.use_register(move_reg)
+                    self.free_register(reg)
+                    return move_reg
+
+
     def assignment_code(self, ast, local_vars, params):
 
         code = []
@@ -268,7 +292,7 @@ class ASMCodeGenerator():
         code_string += '\tsub $sp, $sp, %d\t# Make space for the locals\n' % (8 + local_vars_size)
         code_string += '# Prologue ends\n'
 
-        ######
+        ###### BODY
 
         for node in cfg_nodes:
 
@@ -277,5 +301,14 @@ class ASMCodeGenerator():
 
             code_string += self.node_code(node, local_vars, params)
 
+        ###### EPILOGUE
+
+        code_string += '# Epilogue begins\n'
+        code_string += 'epilogue_' + func_name + ':\n'
+        code_string += '\tadd $sp, $sp, %d\n' % (8 + local_vars_size)
+        code_string += '\tlw $fp, -4($sp)\n'
+        code_string += '\tlw $ra, 0($sp)\n'
+        code_string += '\tjr $ra\t# Jump back to the called procedure\n'
+        code_string += '# Epilogue ends\n'
 
         print(code_string)
