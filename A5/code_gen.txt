@@ -50,3 +50,9 @@ a - b ::
 !a ::
     not $s0, $s1
     (free s1)
+
+
+return (expr) ::
+    s0 <= next_free_reg
+    move $s0, $<reg_expr>
+    move $v1, $s0 # move return value to $v1

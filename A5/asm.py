@@ -222,15 +222,28 @@ class ASMCodeGenerator():
 
         return code_string
 
-    def node_code(self, node, local_vars, params):
+    def node_code(self, node, local_vars, params, func_name):
 
         code = ''
 
         if node.is_return:
             # return node
-            code += '\treturn'
             if node.old_body[0] is not None:
-                code += ' ' + node.old_body[0].as_line() + '\n'
+                expr_code = []
+                expr_reg = self.simple_expression_code(node.old_body[0], local_vars, params, expr_code)
+                move_reg = self.get_register()
+
+                expr_code.append('move $%s, $%s' % (move_reg, expr_reg))
+                self.use_register(move_reg)
+                self.free_register(expr_reg)
+
+                expr_code.append('move $v1, $%s' % (move_reg))
+                self.free_register(move_reg)
+
+                for line in expr_code:
+                    code += '\t' + line + '\n'
+
+            code += '\tj epilogue_' + func_name + '\n\n'
             return code
 
         for line_ast in node.old_body:
@@ -241,6 +254,7 @@ class ASMCodeGenerator():
             elif isinstance(line_ast, FunctionCall):
                 code += '\t' + line_ast.as_line() + '\n'
 
+        code += '\tj label' + str(node.id + 1) + '\n'
         return code
 
     def func_code(self, cfg_nodes):
@@ -299,7 +313,7 @@ class ASMCodeGenerator():
             code_string += 'label' + str(node.id) + ':\n'
             self.label_count += 1
 
-            code_string += self.node_code(node, local_vars, params)
+            code_string += self.node_code(node, local_vars, params, func_name)
 
         ###### EPILOGUE
 

@@ -288,6 +288,8 @@ class APLParser(object):
         ret_type = self.tableptr.items[0].symbols[f_name]['ret_type']
 
         if len(p) > 2:
+            check_direct_access(p[2])
+
             p[0] = ReturnStmt(p[2])
             if p[2].dtype != ret_type:
                 print('invalid return.')
