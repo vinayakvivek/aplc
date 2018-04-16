@@ -115,6 +115,7 @@ class Const(AST):
     def __init__(self, value, dtype=None):
         AST.__init__(self, Token('CONST', value), True)
         self.dtype = dtype
+        self.value = value
 
     def __repr__(self):
         return self.as_string(0)
@@ -327,6 +328,9 @@ class ReturnStmt(AST):
         if self.expression is not None:
             body_string += self.expression.as_string(depth)
         return body_string + ')\n'
+
+    def as_line(self):
+        return 'return ' + self.expression.as_line() + '\n'
 
 
 if __name__ == '__main__':

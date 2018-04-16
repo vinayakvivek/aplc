@@ -1,12 +1,13 @@
 from ast import Token, BinOp, UnaryOp, Var,\
     If, While, Function, ReturnStmt, FunctionCall
+from copy import deepcopy
 
 
 class CFGNode(object):
 
     def __init__(self, _id, body, temp_start, logical=False, end=False, func=None, is_return=False):
         self.id = _id
-        self.body = body
+        self.body = deepcopy(body)
         self.logical = logical
         self.end = end
         self.is_return = is_return
@@ -24,6 +25,7 @@ class CFGNode(object):
 
         self.process_body()
         self.body = self.temp_body
+        self.old_body = deepcopy(body)
 
         self.parents = []
 
@@ -64,8 +66,6 @@ class CFGNode(object):
             return UnaryOp(t, expr_ast.token)
 
         elif isinstance(expr_ast, FunctionCall):
-
-            print('YOO')
             t_params = [self.split_expr(x) for x in expr_ast.actual_params]
 
             # temp_var = Var('t' + str(self.temp_count + self.temp_start))
@@ -223,6 +223,9 @@ class CFG(object):
         if ast.has_def is False:
             # function prototype;
             return
+
+        if ast.ret_type[0] == 'void':
+            ast.body.append(ReturnStmt(None))
 
         self.create_nodes(ast.body, func=ast)
 

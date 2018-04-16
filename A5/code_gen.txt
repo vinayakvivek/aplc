@@ -1,0 +1,52 @@
+&a ::
+    addi $s0, $sp, <a_offset>
+
+c = t ::
+    sw <reg_with_t>, <c_offset>($sp)
+
+c :: (or *&c) ::
+    lw $s0, <c_offset>($sp)
+
+5 ::
+    li $s0, 5
+
+*c ::
+    s0 <= c_reg
+
+    lw $s1, 0($s0)
+    (free s0)
+
+a + b ::
+    s1 <= next_free_reg
+    s0 <= a_reg
+    s2 <= b_reg
+
+    add $s1, $s0, $s2
+    move $s0, $s1
+
+    free s1, s2
+
+a / b ::
+    div $s0, $s1
+    mflo $s2
+    move $s0, $s2
+
+a * b ::
+    mul $s2, $s0, $s1
+    move $s0, $s2
+
+a - b ::
+    sub $s2, $s1, $s0
+    move $s0, $s2
+
+-a ::
+    negu $s0, $s1
+    (free s1)
+    --------
+    neg.s $f12, $f10
+    mov.s $f10, $f12
+    (free f12)
+
+!a ::
+    not $s0, $s1
+    (free s1)

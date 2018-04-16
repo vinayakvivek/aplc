@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from ast import BinOp, UnaryOp, FunctionCall
+from ast import BinOp, UnaryOp, FunctionCall, ReturnStmt,\
+    Var, Const
 
 
 class ASMCodeGenerator():
@@ -35,24 +36,36 @@ class ASMCodeGenerator():
         self.data_part()
         self.text_part()
 
-    def get_free_register(self):
+    def get_register(self):
         for k, v in self.registers.items():
             if v:
                 return k
         return None
 
+    def use_register(self, reg):
+        self.registers[reg] = False
+
+    def free_register(self, reg):
+        self.registers[reg] = True
+
     def data_part(self):
         data_string = '\t.data\n'
 
+        global_vars = []
         for k, v in self.symtable.symbols.items():
             if v['type'] not in ('function', 'block'):
                 # variable
-                data_string += 'global_' + k + ':\t'
-                if v['type'][1] > 0 or v['type'][0] == 'int':
-                    data_string += '.word\t0\n'
-                else:
-                    data_string += '.space\t8\n'
+                global_vars.append((k, v))
 
+        global_vars = sorted(global_vars, key=lambda x: x[0])
+        for (k, v) in global_vars:
+            data_string += 'global_' + k + ':\t'
+            if v['type'][1] > 0 or v['type'][0] == 'int':
+                data_string += '.word\t0\n'
+            else:
+                data_string += '.space\t8\n'
+
+        self.global_vars = global_vars
         print(data_string)
 
     def text_part(self):
@@ -64,6 +77,147 @@ class ASMCodeGenerator():
             if node.func is not None or node.end:
                 self.func_code(self.cfg.nodes[func_start:i])
                 func_start = i
+
+    def get_variable_offset(self, name, local_vars, params):
+        '''
+        return ('<offset>' or 'global_<id>', is_global)
+        '''
+        for (k, v) in local_vars:
+            if name == k:
+                return (v['offset'], False)
+
+        for (k, v) in params:
+            if name == k:
+                return (v['offset'], False)
+
+        for (k, v) in self.global_vars:
+            if name == k:
+                return ('global_%s' % k, True)
+
+        return None
+
+    def simple_expression_code(self, ast, local_vars, params, code=[]):
+        '''
+        generate code for a simple ast
+            : *a
+            : t0 + t1
+            : a - t0
+            : expr op expr
+            : func(expr, expr)
+
+        return register which contains the value
+        '''
+        if isinstance(ast, Const):
+            if ast.dtype[0] == 'int':
+                reg = self.get_register()
+                code.append('li $%s, %d' % (reg, ast.value))
+                self.use_register(reg)
+                return reg
+
+        elif isinstance(ast, Var):
+            if ast.dtype[0] == 'int':
+                '''lw $<reg>, <c_offset>($sp)'''
+                reg = self.get_register()
+                loc, is_global = self.get_variable_offset(ast.value, local_vars, params)
+                if is_global:
+                    code.append('lw $%s, %s' % (reg, loc))
+                else:
+                    code.append('lw $%s, %d($sp)' % (reg, loc))
+                self.use_register(reg)
+                return reg
+
+        elif isinstance(ast, UnaryOp):
+            if ast.op == 'DEREF':
+                '''
+                s0 <= c_reg
+                lw $s1, 0($s0)
+                free s0
+                '''
+                reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
+                reg2 = self.get_register()
+                code.append('lw $%s, 0($%s)' % (reg2, reg1))
+                self.free_register(reg1)
+                self.use_register(reg2)
+                return reg2
+
+            elif ast.op == 'ADDR':
+                '''
+                la $s0, global_<id>
+                OR
+                addi $s0, $sp, <a_offset>
+                '''
+                assert isinstance(ast.child, Var)
+                loc, is_global = self.get_variable_offset(ast.child.value, local_vars, params)
+                reg = self.get_register()
+                if is_global:
+                    code.append('la $%s, %s' % (reg, loc))
+                else:
+                    code.append('addi $%s, $sp, %d' % (reg, loc))
+                self.use_register(reg)
+                return reg
+
+            elif ast.op == 'UMINUS':
+                '''
+                negu $s0, $s1
+                (free s1)
+                --------
+                neg.s $f12, $f10
+                mov.s $f10, $f12
+                (free f12)
+                '''
+                pass
+
+            elif ast.op == 'NOT':
+                pass
+
+    def assignment_code(self, ast, local_vars, params):
+
+        code = []
+        rhs_reg = self.simple_expression_code(ast.right_child, local_vars, params, code)
+
+        if isinstance(ast.left_child, Var):
+            loc, is_global = self.get_variable_offset(ast.left_child.value, local_vars, params)
+            if is_global:
+                code.append('sw $%s, %s' % (rhs_reg, loc))
+            else:
+                code.append('sw $%s, %d($sp)' % (rhs_reg, loc))
+        elif isinstance(ast.left_child, UnaryOp) :
+            lhs_ast = ast.left_child
+            lhs_reg = self.simple_expression_code(lhs_ast.child, local_vars, params, code)
+
+            if lhs_ast.op == 'DEREF':
+                code.append('sw $%s, 0($%s)' % (rhs_reg, lhs_reg))
+
+            self.free_register(lhs_reg)
+
+        self.free_register(rhs_reg)
+
+        code_string = ''
+        for line in code:
+            code_string += '\t' + line + '\n'
+
+        return code_string
+
+    def node_code(self, node, local_vars, params):
+
+        code = ''
+
+        if node.is_return:
+            # return node
+            code += '\treturn'
+            if node.old_body[0] is not None:
+                code += ' ' + node.old_body[0].as_line() + '\n'
+            return code
+
+        for line_ast in node.old_body:
+            if isinstance(line_ast, BinOp):
+                assert line_ast.token.type == 'ASGN'
+                # code += '\t' + line_ast.as_line() + '\n'
+                code += self.assignment_code(line_ast, local_vars, params)
+            elif isinstance(line_ast, FunctionCall):
+                code += '\t' + line_ast.as_line() + '\n'
+
+        return code
 
     def func_code(self, cfg_nodes):
         assert cfg_nodes[0].func is not None
@@ -116,15 +270,12 @@ class ASMCodeGenerator():
 
         ######
 
-        # for node in cfg_nodes:
+        for node in cfg_nodes:
 
-        #     code_string += 'label' + str(node.id) + ':\n'
-        #     self.label_count += 1
+            code_string += 'label' + str(node.id) + ':\n'
+            self.label_count += 1
 
-        #     for item in node.body:
-
-
-
+            code_string += self.node_code(node, local_vars, params)
 
 
         print(code_string)
