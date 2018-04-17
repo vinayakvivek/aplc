@@ -24,7 +24,7 @@ a + b ::
     add $s1, $s0, $s2
     move $s0, $s1
 
-    free s1, s2
+    (free s1, s2)
 
 a / b ::
     div $s0, $s1
@@ -40,7 +40,8 @@ a - b ::
     move $s0, $s2
 
 -a ::
-    negu $s0, $s1
+    negu $s1, $s0
+    move $s0, $s1
     (free s1)
     --------
     neg.s $f12, $f10
@@ -48,8 +49,45 @@ a - b ::
     (free f12)
 
 !a ::
-    not $s0, $s1
+    not $s1, $s0
+    move $s0, $s1
     (free s1)
+
+e1 < e2 ::
+    slt $s2, $<reg1>, $<reg2>
+    move $s0, $s2
+    (free reg1, reg2)
+
+e1 > e2 ::
+    slt $s2, $<reg2>, $<reg1>
+    move $s0, $s2
+    (free reg1, reg2)
+
+e1 <= e2 ::
+    sle $s2, $<reg1>, $<reg2>
+    move $s0, $s2
+    (free reg1, reg2)
+
+e1 >= e2 ::
+    sle $s2, $<reg2>, $<reg1>
+    move $s0, $s2
+    (free reg1, reg2)
+
+e1 == e2 ::
+    seq $s2, $s1, $s0
+    move $s0, $s2
+
+e1 != e2 ::
+    sne $s2, $s1, $s0
+    move $s0, $s2
+
+e1 || e2 ::
+    or $s2, $s0, $s1
+    move $s0, $s2
+
+e1 && e2 ::
+    and $s2, $s0, $s1
+    move $s0, $s2
 
 
 return (expr) ::

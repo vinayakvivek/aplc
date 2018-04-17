@@ -196,86 +196,88 @@ class ASMCodeGenerator():
                     return move_reg(reg2)
 
             elif ast.op == 'NOT':
-                pass
+                reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
+                reg2 = self.get_register()
+                code.append('not $%s, $%s' % (reg2, reg1))
+                self.use_register(reg2)
+                self.free_register(reg1)
+                return move_reg(reg2)
 
         elif isinstance(ast, BinOp):
             if ast.dtype == ('int', 0):
                 '''integer operations'''
+
+                reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                reg = self.get_register()
+
                 if ast.op == 'PLUS':
-                    '''
-                    add $s1, $<reg1>, $<reg2>
-                    move $s0, $s1
-                    (free reg1, reg2)
-                    '''
-                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                    reg = self.get_register()
+                    '''add $s1, $<reg1>, $<reg2>'''
                     code.append('add $%s, $%s, $%s' % (reg, reg1, reg2))
-                    self.use_register(reg)
-                    self.free_register(reg1)
-                    self.free_register(reg2)
-                    return move_reg(reg)
 
                 elif ast.op == 'MINUS':
-                    '''
-                    sub $s1, $<reg1>, $<reg2>
-                    move $s0, $s1
-                    (free reg1, reg2)
-                    '''
-                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                    reg = self.get_register()
+                    '''sub $s1, $<reg1>, $<reg2>'''
                     code.append('sub $%s, $%s, $%s' % (reg, reg1, reg2))
-                    self.use_register(reg)
-                    self.free_register(reg1)
-                    self.free_register(reg2)
-                    return move_reg(reg)
 
                 elif ast.op == 'MUL':
-                    '''
-                    mul $s1, $<reg1>, $<reg2>
-                    move $s0, $s1
-                    (free reg1, reg2)
-                    '''
-                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                    reg = self.get_register()
+                    '''mul $s1, $<reg1>, $<reg2>'''
                     code.append('mul $%s, $%s, $%s' % (reg, reg1, reg2))
-                    self.use_register(reg)
-                    self.free_register(reg1)
-                    self.free_register(reg2)
-                    return move_reg(reg)
 
                 elif ast.op == 'DIV':
                     '''
                     div $s0, $s1
                     mflo $s2
-                    move $s0, $s2
-                    (free reg1, reg2)
                     '''
-                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                    reg = self.get_register()
                     code.append('div $%s, $%s' % (reg1, reg2))
                     code.append('mflo %s' % (reg))
-                    self.use_register(reg)
-                    self.free_register(reg1)
-                    self.free_register(reg2)
-                    return move_reg(reg)
+
+                self.use_register(reg)
+                self.free_register(reg1)
+                self.free_register(reg2)
+                return move_reg(reg)
 
             if ast.dtype == ('bool', 0):
+
+                reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                reg = self.get_register()
+
                 if ast.op == 'LT':
-                    '''
-                    slt $s2, $s1, $s0
-                    '''
-                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                    reg = self.get_register()
+                    '''slt $s2, $s1, $s0'''
                     code.append('slt $%s, $%s, $%s' % (reg, reg1, reg2))
-                    self.use_register(reg)
-                    self.free_register(reg1)
-                    self.free_register(reg2)
-                    return move_reg(reg)
+
+                elif ast.op == 'GT':
+                    '''slt $s2, $s0, $s1'''
+                    code.append('slt $%s, $%s, $%s' % (reg, reg2, reg1))
+
+                elif ast.op == 'LE':
+                    '''sle $s2, $s1, $s0'''
+                    code.append('sle $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                elif ast.op == 'GE':
+                    '''sle $s2, $s0, $s1'''
+                    code.append('sle $%s, $%s, $%s' % (reg, reg2, reg1))
+
+                elif ast.op == 'EQ':
+                    '''seq $s2, $s1, $s0'''
+                    code.append('seq $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                elif ast.op == 'NE':
+                    '''sne $s2, $s1, $s0'''
+                    code.append('sne $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                elif ast.op == 'OR':
+                    '''or $s2, $s1, $s0'''
+                    code.append('or $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                elif ast.op == 'AND':
+                    '''or $s2, $s1, $s0'''
+                    code.append('and $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                self.use_register(reg)
+                self.free_register(reg1)
+                self.free_register(reg2)
+                return move_reg(reg)
 
         elif isinstance(ast, FunctionCall):
             num_params = len(ast.actual_params)
