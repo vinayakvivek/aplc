@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from ast import BinOp, UnaryOp, FunctionCall, ReturnStmt,\
     Var, Const
-
+from symtablev2 import get_width
 
 def code_string(code):
     temp_string = ''
@@ -122,7 +122,7 @@ class ASMCodeGenerator():
                 return reg
 
         elif isinstance(ast, Var):
-            if ast.dtype[0] == 'int':
+            if ast.dtype[0] == 'int' or ast.dtype[1] > 0:
                 '''lw $<reg>, <c_offset>($sp)'''
                 reg = self.get_register()
                 loc, is_global = self.get_variable_offset(ast.value, local_vars, params)
@@ -219,6 +219,43 @@ class ASMCodeGenerator():
                     self.free_register(reg)
                     return move_reg
 
+        elif isinstance(ast, FunctionCall):
+            num_params = len(ast.actual_params)
+            regs = {}
+            params_offsets = []
+            offset = 0
+
+            for i, p in enumerate(ast.actual_params):
+                if not isinstance(p, (Var, Const, UnaryOp)):
+                    regs[i] = self.simple_expression_code(p, local_vars, params, code)
+
+                params_offsets.append(offset)
+                offset += get_width(p.dtype)
+
+            if num_params > 0:
+                last_off = params_offsets[-1]
+                params_offsets = [p_off - last_off for p_off in params_offsets]
+
+            code.append('# setting up activation record for called function')
+
+            for i, p in enumerate(ast.actual_params):
+
+                if p.dtype[1] > 0 or p.dtype[0] == 'int':
+                    if isinstance(p, (Var, Const, UnaryOp)):
+                        reg = self.simple_expression_code(p, local_vars, params, code)
+                        code.append('sw $%s, %d($sp)' % (reg, params_offsets[i]))
+                        self.free_register(reg)
+                    else:
+                        code.append('sw $%s, %d($sp)' % (regs[i], params_offsets[i]))
+                        self.free_register(regs[i])
+                else:
+                    # TODO: take care of floating point
+                    pass
+
+            code.append('sub $sp, $sp, %d' % (offset))
+            code.append('jal %s' % (ast.id) + ' # function call')
+            code.append('add $sp, $sp, %d' % (offset) + ' # destroying activation record of called function')
+            return 'v1'
 
     def return_code(self, ast, local_vars, params):
         code = []
@@ -275,7 +312,6 @@ class ASMCodeGenerator():
         code.append('j label%d' % (goto_f))
 
         self.free_register(reg)
-
         return code_string(code)
 
     def node_code(self, node, local_vars, params, func_name):
@@ -300,7 +336,9 @@ class ASMCodeGenerator():
                 # code += '\t' + line_ast.as_line() + '\n'
                 code += self.assignment_code(line_ast, local_vars, params)
             elif isinstance(line_ast, FunctionCall):
-                code += '\t' + line_ast.as_line() + '\n'
+                f_code = []
+                self.simple_expression_code(line_ast, local_vars, params, f_code)
+                code += code_string(f_code)
 
         code += '\tj label' + str(node.goto) + '\n'
         return code

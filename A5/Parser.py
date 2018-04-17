@@ -356,6 +356,9 @@ class APLParser(object):
         '''expr_list : expression COMMA expr_list
                      | expression
                      | empty'''
+        if p[1] is not None:
+            check_direct_access(p[1])
+
         if len(p) > 2:
             p[0] = [p[1]] + p[3]
         else:
