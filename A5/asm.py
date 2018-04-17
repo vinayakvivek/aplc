@@ -430,7 +430,6 @@ class ASMCodeGenerator():
                     self.free_register(reg2)
                     return move_reg(reg)
 
-
         elif isinstance(ast, FunctionCall):
             num_params = len(ast.actual_params)
             regs = {}
@@ -460,9 +459,15 @@ class ASMCodeGenerator():
                     else:
                         code.append('sw $%s, %d($sp)' % (regs[i], params_offsets[i]))
                         self.free_register(regs[i])
-                else:
+                elif p.dtype == ('float', 0):
                     # TODO: take care of floating point
-                    pass
+                    if isinstance(p, (Var, Const, UnaryOp)):
+                        reg = self.simple_expression_code(p, local_vars, params, code)
+                        code.append('s.s $%s, %d($sp)' % (reg, params_offsets[i]))
+                        self.free_register(reg)
+                    else:
+                        code.append('s.s $%s, %d($sp)' % (regs[i], params_offsets[i]))
+                        self.free_register(regs[i])
 
             code.append('sub $sp, $sp, %d' % (offset))
             code.append('jal %s' % (ast.id) + ' # function call')
