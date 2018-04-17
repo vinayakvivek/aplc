@@ -6,7 +6,10 @@ from symtablev2 import get_width
 def code_string(code):
     temp_string = ''
     for line in code:
-        temp_string += '\t' + line + '\n'
+        if line[0] == '@':
+            temp_string += line[1:] + '\n'
+        else:
+            temp_string += '\t' + line + '\n'
     return temp_string
 
 
@@ -41,20 +44,52 @@ class ASMCodeGenerator():
             't9': True,
         })
 
+        self.float_registers = OrderedDict({
+            'f10': True,
+            'f12': True,
+            'f14': True,
+            'f16': True,
+            'f18': True,
+            'f2': True,
+            'f20': True,
+            'f22': True,
+            'f24': True,
+            'f26': True,
+            'f28': True,
+            'f30': True,
+            'f4': True,
+            'f6': True,
+            'f8': True,
+        })
+
+        self.fcmp_count = 0
+
         self.data_part()
         self.text_part()
 
-    def get_register(self):
-        for k, v in self.registers.items():
-            if v:
-                return k
+    def get_register(self, freg=False):
+
+        if not freg:
+            for k, v in self.registers.items():
+                if v:
+                    return k
+        else:
+            for k, v in self.float_registers.items():
+                if v:
+                    return k
         return None
 
     def use_register(self, reg):
-        self.registers[reg] = False
+        if reg in self.float_registers:
+            self.float_registers[reg] = False
+        elif reg in self.registers:
+            self.registers[reg] = False
 
     def free_register(self, reg):
-        self.registers[reg] = True
+        if reg in self.float_registers:
+            self.float_registers[reg] = True
+        elif reg in self.registers:
+            self.registers[reg] = True
 
     def data_part(self):
         data_string = '\t.data\n'
@@ -115,9 +150,13 @@ class ASMCodeGenerator():
 
         return register which contains the value
         '''
-        def move_reg(reg):
-            t_reg = self.get_register()
-            code.append('move $%s, $%s' % (t_reg, reg))
+        def move_reg(reg, freg=False):
+            t_reg = self.get_register(freg)
+            if not freg:
+                code.append('move $%s, $%s' % (t_reg, reg))
+            else:
+                code.append('mov.s $%s, $%s' % (t_reg, reg))
+
             self.use_register(t_reg)
             self.free_register(reg)
             return t_reg
@@ -125,21 +164,26 @@ class ASMCodeGenerator():
         if isinstance(ast, Const):
             if ast.dtype[0] == 'int':
                 reg = self.get_register()
-                code.append('li $%s, %d' % (reg, ast.value))
+                code.append('li $%s, %s' % (reg, ast.value))
+                self.use_register(reg)
+                return reg
+            elif ast.dtype[0] == 'float':
+                '''li.s $f10, <const>'''
+                reg = self.get_register(freg=True)
+                code.append('li.s $%s, %s' % (reg, ast.value))
                 self.use_register(reg)
                 return reg
 
         elif isinstance(ast, Var):
-            if ast.dtype[0] == 'int' or ast.dtype[1] > 0:
-                '''lw $<reg>, <c_offset>($sp)'''
-                reg = self.get_register()
-                loc, is_global = self.get_variable_offset(ast.value, local_vars, params)
-                if is_global:
-                    code.append('lw $%s, %s' % (reg, loc))
-                else:
-                    code.append('lw $%s, %d($sp)' % (reg, loc))
-                self.use_register(reg)
-                return reg
+            '''lw $<reg>, <c_offset>($sp)'''
+            reg = self.get_register()
+            loc, is_global = self.get_variable_offset(ast.value, local_vars, params)
+            if is_global:
+                code.append('lw $%s, %s' % (reg, loc))
+            else:
+                code.append('lw $%s, %d($sp)' % (reg, loc))
+            self.use_register(reg)
+            return reg
 
         elif isinstance(ast, UnaryOp):
             if ast.op == 'DEREF':
@@ -148,18 +192,25 @@ class ASMCodeGenerator():
                 lw $s1, 0($s0)
                 free s0
                 '''
-
                 # check for `*&c` case
                 if isinstance(ast.child, UnaryOp) and\
                    ast.child.op == 'ADDR' and isinstance(ast.child.child, Var):
                     return self.simple_expression_code(ast.child.child, local_vars, params, code)
 
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
-                reg2 = self.get_register()
-                code.append('lw $%s, 0($%s)' % (reg2, reg1))
-                self.free_register(reg1)
-                self.use_register(reg2)
-                return reg2
+
+                if ast.dtype[1] > 0 or ast.dtype[0] == 'int':
+                    reg2 = self.get_register()
+                    code.append('lw $%s, 0($%s)' % (reg2, reg1))
+                    self.free_register(reg1)
+                    self.use_register(reg2)
+                    return reg2
+                elif ast.dtype == ('float', 0):
+                    reg2 = self.get_register(freg=True)
+                    code.append('l.s $%s, 0($%s)' % (reg2, reg1))
+                    self.free_register(reg1)
+                    self.use_register(reg2)
+                    return reg2
 
             elif ast.op == 'ADDR':
                 '''
@@ -178,7 +229,7 @@ class ASMCodeGenerator():
                 return reg
 
             elif ast.op == 'UMINUS':
-                if ast.dtype[0] == 'int':
+                if ast.dtype == ('int', 0):
                     '''
                     negu $s1, $s0
                     move $s0, $s1
@@ -189,9 +240,17 @@ class ASMCodeGenerator():
                     self.use_register(reg2)
                     self.free_register(reg1)
                     return move_reg(reg2)
-                elif ast.dtype[0] == 'float':
-                    # TODO: float uminus
-                    pass
+                elif ast.dtype == ('float', 0):
+                    '''
+                    neg.s $f12, $f10
+                    mov.s $f10, $f12
+                    '''
+                    reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
+                    reg2 = self.get_register(freg=True)
+                    code.append('neg.s $%s, $%s' % (reg2, reg1))
+                    self.use_register(reg2)
+                    self.free_register(reg1)
+                    return move_reg(reg2, freg=True)
 
             elif ast.op == 'NOT':
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
@@ -202,7 +261,8 @@ class ASMCodeGenerator():
                 return move_reg(reg2)
 
         elif isinstance(ast, BinOp):
-            if ast.dtype == ('int', 0):
+
+            if ast.left_child.dtype == ('int', 0):
                 '''integer operations'''
 
                 reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
@@ -229,18 +289,7 @@ class ASMCodeGenerator():
                     code.append('div $%s, $%s' % (reg1, reg2))
                     code.append('mflo %s' % (reg))
 
-                self.use_register(reg)
-                self.free_register(reg1)
-                self.free_register(reg2)
-                return move_reg(reg)
-
-            if ast.dtype == ('bool', 0):
-
-                reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
-                reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
-                reg = self.get_register()
-
-                if ast.op == 'LT':
+                elif ast.op == 'LT':
                     '''slt $s2, $s1, $s0'''
                     code.append('slt $%s, $%s, $%s' % (reg, reg1, reg2))
 
@@ -264,7 +313,18 @@ class ASMCodeGenerator():
                     '''sne $s2, $s1, $s0'''
                     code.append('sne $%s, $%s, $%s' % (reg, reg1, reg2))
 
-                elif ast.op == 'OR':
+                self.use_register(reg)
+                self.free_register(reg1)
+                self.free_register(reg2)
+                return move_reg(reg)
+
+            elif ast.left_child.dtype == ('bool', 0):
+
+                reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                reg = self.get_register()
+
+                if ast.op == 'OR':
                     '''or $s2, $s1, $s0'''
                     code.append('or $%s, $%s, $%s' % (reg, reg1, reg2))
 
@@ -276,6 +336,100 @@ class ASMCodeGenerator():
                 self.free_register(reg1)
                 self.free_register(reg2)
                 return move_reg(reg)
+
+            elif ast.left_child.dtype == ('float', 0):
+                '''float operations'''
+
+                reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+
+                if ast.op in ('PLUS', 'MINUS', 'MUL', 'DIV'):
+
+                    reg = self.get_register(freg=True)
+
+                    if ast.op == 'PLUS':
+                        '''add.s $f14, $f10, $f12'''
+                        code.append('add.s $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                    elif ast.op == 'MINUS':
+                        '''sub.s $f14, $<reg1>, $<reg2>'''
+                        code.append('sub.s $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                    elif ast.op == 'MUL':
+                        '''mul.s $f14, $<reg1>, $<reg2>'''
+                        code.append('mul.s $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                    elif ast.op == 'DIV':
+                        '''div.s $f14, $<reg1>, $<reg2>'''
+                        code.append('div.s $%s, $%s, $%s' % (reg, reg1, reg2))
+
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg, freg=True)
+
+                elif ast.op in ('LT', 'GT', 'LE', 'GE', 'EQ'):
+                    '''
+                        c.lt.s $f10, $f12
+                        bc1f L_CondFalse_0
+                        li $s0, 1
+                        j L_CondEnd_0
+                    L_CondFalse_0:
+                        li $s0, 0
+                    L_CondEnd_0:
+                        move $s1, $s0
+                    '''
+                    cond_label = self.fcmp_count
+                    self.fcmp_count += 1
+
+                    reg = self.get_register()
+                    self.use_register(reg)
+
+                    if ast.op == 'LT':
+                        code.append('c.lt.s $%s, $%s' % (reg1, reg2))
+
+                    elif ast.op == 'GT':
+                        code.append('c.lt.s $%s, $%s' % (reg2, reg1))
+
+                    elif ast.op == 'LE':
+                        code.append('c.le.s $%s, $%s' % (reg1, reg2))
+
+                    elif ast.op == 'GE':
+                        code.append('c.le.s $%s, $%s' % (reg2, reg1))
+
+                    elif ast.op == 'EQ':
+                        code.append('c.eq.s $%s, $%s' % (reg2, reg1))
+
+                    code.append('bc1f L_CondFalse_%d' % (cond_label))
+                    code.append('li $%s, 1' % (reg))
+                    code.append('j L_CondEnd_%d' % (cond_label))
+                    code.append('@L_CondFalse_%d:' % (cond_label))
+                    code.append('li $%s, 0' % (reg))
+                    code.append('@L_CondEnd_%d:' % (cond_label))
+
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg)
+
+                elif ast.op == 'NE':
+                    cond_label = self.fcmp_count
+                    self.fcmp_count += 1
+
+                    reg = self.get_register()
+                    self.use_register(reg)
+
+                    code.append('c.eq.s $%s, $%s' % (reg2, reg1))
+                    code.append('bc1f L_CondTrue_%d' % (cond_label))
+                    code.append('li $%s, 0' % (reg))
+                    code.append('j L_CondEnd_%d' % (cond_label))
+                    code.append('@L_CondTrue_%d:' % (cond_label))
+                    code.append('li $%s, 1' % (reg))
+                    code.append('@L_CondEnd_%d:' % (cond_label))
+
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg)
+
 
         elif isinstance(ast, FunctionCall):
             num_params = len(ast.actual_params)
@@ -350,12 +504,16 @@ class ASMCodeGenerator():
                 code.append('sw $%s, %s' % (rhs_reg, loc))
             else:
                 code.append('sw $%s, %d($sp)' % (rhs_reg, loc))
+
         elif isinstance(ast.left_child, UnaryOp) :
             lhs_ast = ast.left_child
             lhs_reg = self.simple_expression_code(lhs_ast.child, local_vars, params, code)
 
             if lhs_ast.op == 'DEREF':
-                code.append('sw $%s, 0($%s)' % (rhs_reg, lhs_reg))
+                if ast.dtype == ('float', 0):
+                    code.append('s.s $%s, 0($%s)' % (rhs_reg, lhs_reg))
+                else:
+                    code.append('sw $%s, 0($%s)' % (rhs_reg, lhs_reg))
 
             self.free_register(lhs_reg)
 
@@ -476,5 +634,5 @@ class ASMCodeGenerator():
         code_string += '\tjr $ra\t# Jump back to the called procedure\n'
         code_string += '# Epilogue ends\n'
 
-        # print(code_string)
+        print(code_string)
         self.asm_file.write(code_string)

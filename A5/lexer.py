@@ -72,7 +72,7 @@ class APLLexer(object):
     def t_REAL(self, t):
         r'([0-9]+[.][0-9]*|[.][0-9]+)'
         try:
-            t.value = float(t.value)
+            val = float(t.value)
         except ValueError:
             print("float value too large %d", t.value)
             t.value = 0
@@ -81,7 +81,7 @@ class APLLexer(object):
     def t_INTEGER(self, t):
         r'\d+'
         try:
-            t.value = int(t.value)
+            val = int(t.value)
         except ValueError:
             print("Integer value too large %d", t.value)
             t.value = 0
