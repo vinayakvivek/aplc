@@ -114,6 +114,13 @@ class ASMCodeGenerator():
 
         return register which contains the value
         '''
+        def move_reg(reg):
+            t_reg = self.get_register()
+            code.append('move $%s, $%s' % (t_reg, reg))
+            self.use_register(t_reg)
+            self.free_register(reg)
+            return t_reg
+
         if isinstance(ast, Const):
             if ast.dtype[0] == 'int':
                 reg = self.get_register()
@@ -171,14 +178,22 @@ class ASMCodeGenerator():
 
             elif ast.op == 'UMINUS':
                 '''
-                negu $s0, $s1
+                negu $s1, $s0
+                (free s0)
+                move $s0, $s1
                 (free s1)
                 --------
                 neg.s $f12, $f10
                 mov.s $f10, $f12
                 (free f12)
                 '''
-                pass
+                if ast.dtype[0] == 'int':
+                    reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
+                    reg2 = self.get_register()
+                    code.append('negu $%s, $%s' % (reg2, reg1))
+                    self.use_register(reg2)
+                    self.free_register(reg1)
+                    return move_reg(reg2)
 
             elif ast.op == 'NOT':
                 pass
@@ -199,12 +214,54 @@ class ASMCodeGenerator():
                     self.use_register(reg)
                     self.free_register(reg1)
                     self.free_register(reg2)
+                    return move_reg(reg)
 
-                    move_reg = self.get_register()
-                    code.append('move $%s, $%s' % (move_reg, reg))
-                    self.use_register(move_reg)
-                    self.free_register(reg)
-                    return move_reg
+                elif ast.op == 'MINUS':
+                    '''
+                    sub $s1, $<reg1>, $<reg2>
+                    move $s0, $s1
+                    (free reg1, reg2)
+                    '''
+                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                    reg = self.get_register()
+                    code.append('sub $%s, $%s, $%s' % (reg, reg1, reg2))
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg)
+
+                elif ast.op == 'MUL':
+                    '''
+                    mul $s1, $<reg1>, $<reg2>
+                    move $s0, $s1
+                    (free reg1, reg2)
+                    '''
+                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                    reg = self.get_register()
+                    code.append('mul $%s, $%s, $%s' % (reg, reg1, reg2))
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg)
+
+                elif ast.op == 'DIV':
+                    '''
+                    div $s0, $s1
+                    mflo $s2
+                    move $s0, $s2
+                    (free reg1, reg2)
+                    '''
+                    reg1 = self.simple_expression_code(ast.left_child, local_vars, params, code)
+                    reg2 = self.simple_expression_code(ast.right_child, local_vars, params, code)
+                    reg = self.get_register()
+                    code.append('div $%s, $%s' % (reg1, reg2))
+                    code.append('mflo %s' % (reg))
+                    self.use_register(reg)
+                    self.free_register(reg1)
+                    self.free_register(reg2)
+                    return move_reg(reg)
 
             if ast.dtype == ('bool', 0):
                 if ast.op == 'LT':
@@ -218,12 +275,7 @@ class ASMCodeGenerator():
                     self.use_register(reg)
                     self.free_register(reg1)
                     self.free_register(reg2)
-
-                    move_reg = self.get_register()
-                    code.append('move $%s, $%s' % (move_reg, reg))
-                    self.use_register(move_reg)
-                    self.free_register(reg)
-                    return move_reg
+                    return move_reg(reg)
 
         elif isinstance(ast, FunctionCall):
             num_params = len(ast.actual_params)
