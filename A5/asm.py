@@ -140,6 +140,12 @@ class ASMCodeGenerator():
                 lw $s1, 0($s0)
                 free s0
                 '''
+
+                # check for `*&c` case
+                if isinstance(ast.child, UnaryOp) and\
+                   ast.child.op == 'ADDR' and isinstance(ast.child.child, Var):
+                    return self.simple_expression_code(ast.child.child, local_vars, params, code)
+
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
                 reg2 = self.get_register()
                 code.append('lw $%s, 0($%s)' % (reg2, reg1))
