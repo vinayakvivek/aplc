@@ -47,13 +47,14 @@ class APLParser(object):
         ('nonassoc', 'ELSE'),
     )
 
-    def __init__(self, ast_filename, cfg_filename, sym_filename):
+    def __init__(self, ast_filename, cfg_filename, sym_filename, asm_filename):
         self.lexer = APLLexer()
         # self.parser = yacc.yacc(module=self, debug=True, debuglog=log)
         self.parser = yacc.yacc(module=self, debug=True)
         self.ast_file = open(ast_filename, 'w')
         self.cfg_file = open(cfg_filename, 'w')
         self.sym_file = open(sym_filename, 'w')
+        self.asm_file = open(asm_filename, 'w')
 
         self.offset = Stack()
         self.tableptr = Stack()
@@ -91,7 +92,7 @@ class APLParser(object):
         print_procedures(self.tableptr.top(), self.sym_file)
         print_variables(self.tableptr.top(), self.sym_file)
 
-        code_generator = ASMCodeGenerator(cfg, self.tableptr.top())
+        ASMCodeGenerator(cfg, self.tableptr.top(), self.asm_file)
 
     def p_global_statement_list(self, p):
         '''global_statement_list : global_statement global_statement_list
@@ -600,9 +601,10 @@ if __name__ == "__main__":
     ast_filename = os.path.join(dirname, basename + '.ast')
     cfg_filename = os.path.join(dirname, basename + '.cfg')
     sym_filename = os.path.join(dirname, basename + '.sym')
+    asm_filename = os.path.join(dirname, basename + '.s')
 
     # with open(out_file, 'w') as file:
-    parser = APLParser(ast_filename, cfg_filename, sym_filename)
+    parser = APLParser(ast_filename, cfg_filename, sym_filename, asm_filename)
     parser.parse(data)
 
     print('Successfully Parsed')

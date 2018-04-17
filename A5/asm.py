@@ -12,9 +12,10 @@ def code_string(code):
 
 class ASMCodeGenerator():
 
-    def __init__(self, cfg, symtable):
+    def __init__(self, cfg, symtable, asm_file):
         self.cfg = cfg
         self.symtable = symtable
+        self.asm_file = asm_file
 
         self.label_count = 0
 
@@ -73,7 +74,7 @@ class ASMCodeGenerator():
                 data_string += '.space\t8\n'
 
         self.global_vars = global_vars
-        print(data_string)
+        self.asm_file.write(data_string + '\n')
 
     def text_part(self):
 
@@ -177,23 +178,20 @@ class ASMCodeGenerator():
                 return reg
 
             elif ast.op == 'UMINUS':
-                '''
-                negu $s1, $s0
-                (free s0)
-                move $s0, $s1
-                (free s1)
-                --------
-                neg.s $f12, $f10
-                mov.s $f10, $f12
-                (free f12)
-                '''
                 if ast.dtype[0] == 'int':
+                    '''
+                    negu $s1, $s0
+                    move $s0, $s1
+                    '''
                     reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
                     reg2 = self.get_register()
                     code.append('negu $%s, $%s' % (reg2, reg1))
                     self.use_register(reg2)
                     self.free_register(reg1)
                     return move_reg(reg2)
+                elif ast.dtype[0] == 'float':
+                    # TODO: float uminus
+                    pass
 
             elif ast.op == 'NOT':
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
@@ -340,6 +338,12 @@ class ASMCodeGenerator():
         code = []
         rhs_reg = self.simple_expression_code(ast.right_child, local_vars, params, code)
 
+        if isinstance(ast.right_child, FunctionCall):
+            reg = self.get_register()
+            code.append('move $%s, $v1' % (reg) + ' # using the return value of called function')
+            self.use_register(reg)
+            rhs_reg = reg
+
         if isinstance(ast.left_child, Var):
             loc, is_global = self.get_variable_offset(ast.left_child.value, local_vars, params)
             if is_global:
@@ -408,7 +412,8 @@ class ASMCodeGenerator():
 
         func_name = cfg_nodes[0].func.name
 
-        code_string = '\t.text\n\t.globl ' + func_name + '\n'
+        code_string = '\t.text\t# The .text assembler directive indicates\n'
+        code_string += '\t.globl ' + func_name + '\t# The following is the code\n'
         code_string += func_name + ':\n'
 
         ##### PROLOGUE PART
@@ -471,4 +476,5 @@ class ASMCodeGenerator():
         code_string += '\tjr $ra\t# Jump back to the called procedure\n'
         code_string += '# Epilogue ends\n'
 
-        print(code_string)
+        # print(code_string)
+        self.asm_file.write(code_string)
