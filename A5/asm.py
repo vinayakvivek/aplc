@@ -255,7 +255,7 @@ class ASMCodeGenerator():
             elif ast.op == 'NOT':
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
                 reg2 = self.get_register()
-                code.append('not $%s, $%s' % (reg2, reg1))
+                code.append('xori $%s, $%s, 1' % (reg2, reg1))
                 self.use_register(reg2)
                 self.free_register(reg1)
                 return move_reg(reg2)
@@ -460,7 +460,6 @@ class ASMCodeGenerator():
                         code.append('sw $%s, %d($sp)' % (regs[i], params_offsets[i]))
                         self.free_register(regs[i])
                 elif p.dtype == ('float', 0):
-                    # TODO: take care of floating point
                     if isinstance(p, (Var, Const, UnaryOp)):
                         reg = self.simple_expression_code(p, local_vars, params, code)
                         code.append('s.s $%s, %d($sp)' % (reg, params_offsets[i]))
