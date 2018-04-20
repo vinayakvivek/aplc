@@ -5,6 +5,8 @@ files=(
     "ast.py"
     "cfg.py"
     "symtablev2.py"
+    "asm.py"
+    "README.txt"
 )
 mkdir -p $DIR
 for i in ${files[@]}
