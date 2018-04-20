@@ -2,6 +2,7 @@ from collections import OrderedDict
 from ast import BinOp, UnaryOp, FunctionCall, ReturnStmt,\
     Var, Const
 from symtablev2 import get_width
+from copy import deepcopy
 
 def code_string(code):
     temp_string = ''
@@ -433,19 +434,20 @@ class ASMCodeGenerator():
         elif isinstance(ast, FunctionCall):
             num_params = len(ast.actual_params)
             regs = {}
-            params_offsets = []
-            offset = 0
+            param_widths = []
 
             for i, p in enumerate(ast.actual_params):
                 if not isinstance(p, (Var, Const, UnaryOp)):
                     regs[i] = self.simple_expression_code(p, local_vars, params, code)
 
-                params_offsets.append(offset)
-                offset += get_width(p.dtype)
+                param_widths.append(get_width(p.dtype))
 
-            if num_params > 0:
-                last_off = params_offsets[-1]
-                params_offsets = [p_off - last_off for p_off in params_offsets]
+            params_offsets = [0] * num_params
+            offset = 0
+
+            for i, w in enumerate(reversed(param_widths)):
+                params_offsets[num_params - i - 1] = offset
+                offset -= w
 
             code.append('# setting up activation record for called function')
 
@@ -468,9 +470,9 @@ class ASMCodeGenerator():
                         code.append('s.s $%s, %d($sp)' % (regs[i], params_offsets[i]))
                         self.free_register(regs[i])
 
-            code.append('sub $sp, $sp, %d' % (offset))
+            code.append('sub $sp, $sp, %d' % (-offset))
             code.append('jal %s' % (ast.id) + ' # function call')
-            code.append('add $sp, $sp, %d' % (offset) + ' # destroying activation record of called function')
+            code.append('add $sp, $sp, %d' % (-offset) + ' # destroying activation record of called function')
             return 'v1'
 
     def return_code(self, ast, local_vars, params):
