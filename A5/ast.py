@@ -247,7 +247,7 @@ class Param(AST):
 
     def as_string(self, depth=0):
         tab = '\t' * depth
-        return tab + self.dtype + '*'*self.pointer_level + ' ' + (self.id if self.id is not None else '')
+        return tab + self.dtype + ' ' + '*'*self.pointer_level + (self.id if self.id is not None else '')
 
 
 class Block(AST):

@@ -106,18 +106,32 @@ def print_procedures(symtable, file):
 
     for k, v in symtable.symbols.items():
         if v['type'] == 'function':
+            if k == 'main':
+                continue
             file.write(k + '\t\t|\t')
             ret_type = v['ret_type']
-            file.write(ret_type[0] + '*'*ret_type[1] + '\t     |\t')
+            file.write(ret_type[0] + '*'*ret_type[1] + '\t\t|\t')
             table = v['tableptr']
             num_params = table.num_params
             params = []
             for pk, pv in table.symbols.items():
                 if num_params == 0:
                     break
-                params.append((pk, pv['type'][0] + '*' * pv['type'][1]))
+                params.append(pv['type'][0] + ' ' + '*' * pv['type'][1] + pk)
                 num_params -= 1
-            file.write(str(params) + '\n')
+
+            param_string = ''
+            num_params = table.num_params
+
+            if num_params > 1:
+                for i in range(num_params - 1):
+                    param_string += params[i] + ', '
+            if num_params > 0:
+                param_string += params[num_params - 1]
+
+            file.write(param_string + '\n')
+
+    file.write('-----------------------------------------------------------------\n')
 
 
 def print_variables_recursive(symtable, scope, file):
@@ -134,9 +148,8 @@ def print_variables_recursive(symtable, scope, file):
 
 
 def print_variables(symtable, file):
-    file.write('''Variable table :-
------------------------------------------------------------------
-Name    |   Scope       |   Base Type  |  Derived Type
+    file.write('''Variable table :- \n-----------------------------------------------------------------
+Name\t|\tScope\t\t|\tBase Type  |  Derived Type
 -----------------------------------------------------------------\n''')
     print_variables_recursive(symtable, ['global'], file)
     file.write('''-----------------------------------------------------------------

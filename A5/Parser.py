@@ -607,4 +607,4 @@ if __name__ == "__main__":
     parser = APLParser(ast_filename, cfg_filename, sym_filename, asm_filename)
     parser.parse(data)
 
-    print('Successfully Parsed')
+    print('Successfully Compiled.')

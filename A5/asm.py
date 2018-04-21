@@ -116,11 +116,12 @@ class ASMCodeGenerator():
 
         func_start = 0
 
-        for i in range(1, self.cfg.node_count):
+        for i in range(0, self.cfg.node_count):
             node = self.cfg.nodes[i]
-            if node.func is not None or node.end:
-                self.func_code(self.cfg.nodes[func_start:i])
-                func_start = i
+            # if node.func is not None or node.end:
+            if node.is_return:
+                self.func_code(self.cfg.nodes[func_start:i+1])
+                func_start = i+1
 
     def get_variable_offset(self, name, local_vars, params):
         '''
@@ -257,6 +258,7 @@ class ASMCodeGenerator():
                 reg1 = self.simple_expression_code(ast.child, local_vars, params, code)
                 reg2 = self.get_register()
                 code.append('xori $%s, $%s, 1' % (reg2, reg1))
+                # code.append('not $%s, $%s' % (reg2, reg1))
                 self.use_register(reg2)
                 self.free_register(reg1)
                 return move_reg(reg2)
@@ -479,17 +481,17 @@ class ASMCodeGenerator():
         code = []
         reg = self.simple_expression_code(ast, local_vars, params, code)
 
-        if not isinstance(ast, (Var, Const)):
-            move_reg = self.get_register()
-            code.append('move $%s, $%s' % (move_reg, reg))
-            self.use_register(move_reg)
-            self.free_register(reg)
+        # if not isinstance(ast, (Var, Const)):
+        #     move_reg = self.get_register()
+        #     code.append('move $%s, $%s' % (move_reg, reg))
+        #     self.use_register(move_reg)
+        #     self.free_register(reg)
 
-            code.append('move $v1, $%s' % (move_reg) + ' # move return value to $v1')
-            self.free_register(move_reg)
-        else:
-            code.append('move $v1, $%s' % (reg) + ' # move return value to $v1')
-            self.free_register(reg)
+        #     code.append('move $v1, $%s' % (move_reg) + ' # move return value to $v1')
+        #     self.free_register(move_reg)
+        # else:
+        code.append('move $v1, $%s' % (reg) + ' # move return value to $v1')
+        self.free_register(reg)
 
         return code_string(code)
 
@@ -640,5 +642,5 @@ class ASMCodeGenerator():
         code_string += '\tjr $ra\t# Jump back to the called procedure\n'
         code_string += '# Epilogue ends\n'
 
-        print(code_string)
+        # print(code_string)
         self.asm_file.write(code_string)

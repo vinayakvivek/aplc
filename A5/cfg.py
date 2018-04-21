@@ -55,15 +55,15 @@ class CFGNode(object):
             return temp_var
 
         elif isinstance(expr_ast, UnaryOp):
-            # if expr_ast.token.type != 'DEREF':
-            #     t = self.split_expr(expr_ast.child)
-            #     temp_var = Var('t' + str(self.temp_count + self.temp_start))
-            #     self.temp_count += 1
-            #     self.temp_body.append(BinOp(temp_var, UnaryOp(t, expr_ast.token), Token('ASGN', '=')))
-            #     return temp_var
-            # else:
-            t = self.split_expr(expr_ast.child)
-            return UnaryOp(t, expr_ast.token)
+            if expr_ast.token.type in ('NOT', 'UMINUS'):
+                t = self.split_expr(expr_ast.child)
+                temp_var = Var('t' + str(self.temp_count + self.temp_start))
+                self.temp_count += 1
+                self.temp_body.append(BinOp(temp_var, UnaryOp(t, expr_ast.token), Token('ASGN', '=')))
+                return temp_var
+            else:
+                t = self.split_expr(expr_ast.child)
+                return UnaryOp(t, expr_ast.token)
 
         elif isinstance(expr_ast, FunctionCall):
             t_params = [self.split_expr(x) for x in expr_ast.actual_params]
@@ -275,6 +275,7 @@ class CFG(object):
 
         # remove blank nodes
         self.nodes = [x for x in self.nodes if x.body or x.end or x.is_return]
+        self.nodes.pop()
         self.node_count = len(self.nodes)
 
 
