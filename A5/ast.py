@@ -215,7 +215,11 @@ class Function(AST):
         if not self.has_def:
             return ''
 
-        signature = 'FUNCTION ' + str(self.name) + '\nPARAMS ('
+        signature = 'FUNCTION ' + str(self.name)
+        if self.name == 'main':
+            signature = '\n\nFunction Main'
+
+        signature += '\nPARAMS ('
 
         if len(self.params) > 0:
             for i in range(len(self.params) - 1):
@@ -223,7 +227,6 @@ class Function(AST):
             signature += str(self.params[len(self.params) - 1])
 
         signature += ')\nRETURNS ' + '*'*self.ret_type[1] + self.ret_type[0]
-
 
         tab = '\t' * depth
 
